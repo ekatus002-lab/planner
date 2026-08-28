@@ -1,0 +1,9 @@
+config:
+  edition: 3
+
+streams:
+  user_planner_data:
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM areas WHERE user_id = auth.user_id()
+      - SELECT * FROM tasks WHERE user_id = auth.user_id()
