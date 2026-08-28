@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { randomUUID } from 'node:crypto';
 import { render as rtlRender, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
 import { PowerSyncTestProvider } from '@/test/powersync-test-provider';
 import { AreaSettings } from './area-settings';
@@ -126,5 +126,23 @@ describe('AreaSettings', () => {
     // `listAreas` is the same non-archived query new-task selectors use.
     const areas = await listAreas(db, USER_ID);
     expect(areas.some((area) => area.name === 'Творчество')).toBe(false);
+  });
+
+  it('shows a blocking error when archiving fails, keeping the area listed', async () => {
+    const user = userEvent.setup();
+    render(<AreaSettings userId={USER_ID} />);
+    await createTvorchestvo(user);
+
+    const executeSpy = vi.spyOn(db, 'execute').mockRejectedValueOnce(new Error('disk full'));
+
+    await user.click(screen.getByRole('button', { name: 'Архивировать: Творчество' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Не удалось архивировать сферу жизни');
+    // No optimistic archive - the area is still listed and still non-archived.
+    expect(screen.getByLabelText('Название: Творчество')).toBeInTheDocument();
+    expect((await listAreas(db, USER_ID)).some((area) => area.name === 'Творчество')).toBe(true);
+
+    executeSpy.mockRestore();
   });
 });

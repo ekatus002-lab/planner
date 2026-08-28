@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { render as rtlRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
 import { PowerSyncTestProvider } from '@/test/powersync-test-provider';
 import { BacklogPanel } from './backlog-panel';
@@ -78,5 +78,44 @@ describe('BacklogPanel', () => {
     await waitFor(() => {
       expect(screen.queryByText('Удалить меня')).not.toBeInTheDocument();
     });
+  });
+
+  it('shows a blocking error when completing a task fails, without marking it completed', async () => {
+    const user = userEvent.setup();
+    await createTask(db, { userId: 'user-1', title: 'Сломанная галочка' });
+    render(<BacklogPanel userId="user-1" />);
+
+    const checkbox = await screen.findByRole('checkbox', { name: 'Выполнено: Сломанная галочка' });
+    const executeSpy = vi.spyOn(db, 'execute').mockRejectedValueOnce(new Error('disk full'));
+
+    await user.click(checkbox);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Не удалось обновить задачу');
+    // The watched query never saw a completed row - no optimistic
+    // "looks completed" state, and the task is still in the open backlog.
+    expect(screen.getByRole('checkbox', { name: 'Выполнено: Сломанная галочка' })).not.toBeChecked();
+    expect(screen.getByText('Сломанная галочка')).toBeInTheDocument();
+
+    executeSpy.mockRestore();
+  });
+
+  it('shows a blocking error when deleting a task fails, without removing it', async () => {
+    const user = userEvent.setup();
+    await createTask(db, { userId: 'user-1', title: 'Не удаляется' });
+    render(<BacklogPanel userId="user-1" />);
+
+    await screen.findByText('Не удаляется');
+    const executeSpy = vi.spyOn(db, 'execute').mockRejectedValueOnce(new Error('disk full'));
+
+    await user.click(screen.getByRole('button', { name: 'Меню: Не удаляется' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Удалить' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Не удалось удалить задачу');
+    // No optimistic removal - the task is still rendered.
+    expect(screen.getByText('Не удаляется')).toBeInTheDocument();
+
+    executeSpy.mockRestore();
   });
 });

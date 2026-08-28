@@ -31,21 +31,45 @@ export function BacklogPanel({ userId }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // The checkbox/list below are entirely driven by `useBacklogTasks`'s
+  // watched query, never by local optimistic state - so a rejected write
+  // here simply leaves the task exactly as it was persisted (no stale
+  // "looks completed"/"looks deleted" UI to roll back), and we only need to
+  // surface the failure.
   async function handleToggleCompleted(task: Task) {
-    if (!db) return;
-    await setTaskCompleted(db, task.id, task.status !== 'completed', new Date().toISOString());
+    if (!db) {
+      setError('Не удалось обновить задачу');
+      return;
+    }
+    try {
+      await setTaskCompleted(db, task.id, task.status !== 'completed', new Date().toISOString());
+      setError(null);
+    } catch {
+      setError('Не удалось обновить задачу');
+    }
   }
 
   async function handleDelete(task: Task) {
-    if (!db) return;
+    if (!db) {
+      setError('Не удалось удалить задачу');
+      return;
+    }
     setOpenMenuTaskId(null);
-    await deleteTask(db, task.id);
+    try {
+      await deleteTask(db, task.id);
+      setError(null);
+    } catch {
+      setError('Не удалось удалить задачу');
+    }
   }
 
   return (
     <div className="space-y-3">
       <h2 className="text-base font-semibold">Backlog</h2>
+
+      {error && <p role="alert">{error}</p>}
 
       {!isCreating && (
         <button type="button" onClick={() => setIsCreating(true)}>

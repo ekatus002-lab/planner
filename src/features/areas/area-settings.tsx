@@ -10,6 +10,8 @@ import type { Area } from './area-types';
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 const DEFAULT_NEW_COLOR = '#9CA3AF';
 const SAVE_ERROR_MESSAGE = 'Не удалось сохранить сферу жизни';
+const REORDER_ERROR_MESSAGE = 'Не удалось изменить порядок сфер жизни';
+const ARCHIVE_ERROR_MESSAGE = 'Не удалось архивировать сферу жизни';
 
 type Props = { userId: string };
 
@@ -39,32 +41,67 @@ export function AreaSettings({ userId }: Props) {
   }
 
   async function handleMove(index: number, direction: -1 | 1) {
-    if (!db) return;
+    if (!db) {
+      setError(REORDER_ERROR_MESSAGE);
+      return;
+    }
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= areas.length) return;
 
     const orderedIds = areas.map((area) => area.id);
     const [movedId] = orderedIds.splice(index, 1);
     orderedIds.splice(targetIndex, 0, movedId);
-    await reorderAreas(db, orderedIds);
+    try {
+      await reorderAreas(db, orderedIds);
+      setError(null);
+    } catch {
+      // `reorderAreas` re-reads `areas` (the watched, persisted list) on
+      // every render, so a failed/partial reorder is reflected as-is - no
+      // optimistic order to roll back here.
+      setError(REORDER_ERROR_MESSAGE);
+    }
   }
 
   async function handleRename(area: Area, name: string) {
-    if (!db) return;
+    if (!db) {
+      setError(SAVE_ERROR_MESSAGE);
+      return;
+    }
     const trimmed = name.trim();
     if (!trimmed || trimmed === area.name) return;
-    await updateArea(db, area.id, { name: trimmed });
+    try {
+      await updateArea(db, area.id, { name: trimmed });
+      setError(null);
+    } catch {
+      setError(SAVE_ERROR_MESSAGE);
+    }
   }
 
   async function handleRecolor(area: Area, color: string) {
-    if (!db) return;
+    if (!db) {
+      setError(SAVE_ERROR_MESSAGE);
+      return;
+    }
     if (color === area.color || !HEX_COLOR_PATTERN.test(color)) return;
-    await updateArea(db, area.id, { color });
+    try {
+      await updateArea(db, area.id, { color });
+      setError(null);
+    } catch {
+      setError(SAVE_ERROR_MESSAGE);
+    }
   }
 
   async function handleArchive(area: Area) {
-    if (!db) return;
-    await setAreaArchived(db, area.id, true);
+    if (!db) {
+      setError(ARCHIVE_ERROR_MESSAGE);
+      return;
+    }
+    try {
+      await setAreaArchived(db, area.id, true);
+      setError(null);
+    } catch {
+      setError(ARCHIVE_ERROR_MESSAGE);
+    }
   }
 
   return (

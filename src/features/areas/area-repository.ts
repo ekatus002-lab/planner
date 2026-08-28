@@ -153,13 +153,19 @@ export async function setAreaArchived(db: CommonPowerSyncDatabase, id: string, a
 // sequential `sort_order` values in increments of 10 - the same spacing the
 // default seed data uses (10, 20, 30, ...), leaving room for future
 // insertions without a full renumber.
+//
+// Runs as a single `writeTransaction` so a mid-loop failure (e.g. a
+// constraint violation or disk error partway through) rolls back every
+// UPDATE in the batch instead of leaving `sort_order` half-renumbered.
 export async function reorderAreas(db: CommonPowerSyncDatabase, orderedIds: string[]): Promise<void> {
   const now = new Date().toISOString();
-  for (let index = 0; index < orderedIds.length; index += 1) {
-    await db.execute('UPDATE areas SET sort_order = ?, updated_at = ? WHERE id = ?', [
-      (index + 1) * 10,
-      now,
-      orderedIds[index],
-    ]);
-  }
+  await db.writeTransaction(async (tx) => {
+    for (let index = 0; index < orderedIds.length; index += 1) {
+      await tx.execute('UPDATE areas SET sort_order = ?, updated_at = ? WHERE id = ?', [
+        (index + 1) * 10,
+        now,
+        orderedIds[index],
+      ]);
+    }
+  });
 }
