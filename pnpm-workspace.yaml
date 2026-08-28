@@ -2,3 +2,16 @@ allowBuilds:
   better-sqlite3: true
   sharp: false
   unrs-resolver: false
+
+# @powersync/shared-internals@1.1.1 (the only published version) declares an
+# exact peerDependency pin of `@powersync/common: 2.0.0`, which conflicts
+# with @powersync/web@2.2.0 and @powersync/node@0.21.0 both wanting
+# `^2.1.0`. Without this override, adding @powersync/node as a devDependency
+# causes pnpm to re-resolve the ENTIRE workspace's @powersync/common down to
+# 2.0.0 (satisfying shared-internals' exact pin) instead of the 2.1.0 that
+# Task 4's PowerSync code (backend-connector, database.ts, system-provider)
+# was built and verified against. Force 2.1.0 everywhere instead, matching
+# what @powersync/web/@powersync/node themselves declare as their own
+# direct `dependencies` version.
+overrides:
+  '@powersync/common': 2.1.0

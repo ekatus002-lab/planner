@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@powersync/common': 2.1.0
+
 importers:
 
   .:
@@ -716,8 +719,8 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@powersync/common@2.0.0':
-    resolution: {integrity: sha512-GuWmk0w0Y6I1HDwX4uGFzzw1e4E4bkvDSSCpVikdTEIk1xcW5NNnqTX8xfDheZdoQZunm/XushrR/LsIp1Yc/g==}
+  '@powersync/common@2.1.0':
+    resolution: {integrity: sha512-9TbmpTVJ22TA4ZQjfrRR/YkGzMuaNRnPHwT613efp/Sch0jbLhW6kObLmwp0nStUkRqAHSuNHwfclR4wyjvPpQ==}
 
   '@powersync/node@0.21.0':
     resolution: {integrity: sha512-mNDQ7dXmwdEf/jUXdN5IfFiI6hKczdoxqGzu3BKnuRhzeX2utWDZiW44Hnsihuqtryw1U2g5DATifQcx/gmlsg==}
@@ -4416,11 +4419,11 @@ snapshots:
     dependencies:
       playwright: 1.62.1
 
-  '@powersync/common@2.0.0': {}
+  '@powersync/common@2.1.0': {}
 
   '@powersync/node@0.21.0(@powersync/common@2.0.0)(better-sqlite3@12.11.1)':
     dependencies:
-      '@powersync/common': 2.0.0
+      '@powersync/common': 2.1.0
       '@powersync/shared-internals': 1.1.1(@powersync/common@2.0.0)
       comlink: 4.4.2
       undici: 7.29.0
@@ -4429,17 +4432,17 @@ snapshots:
 
   '@powersync/react@2.0.0(@powersync/common@2.0.0)(react@19.2.8)':
     dependencies:
-      '@powersync/common': 2.0.0
+      '@powersync/common': 2.1.0
       react: 19.2.8
 
   '@powersync/shared-internals@1.1.1(@powersync/common@2.0.0)':
     dependencies:
-      '@powersync/common': 2.0.0
+      '@powersync/common': 2.1.0
 
   '@powersync/web@2.2.0(@powersync/common@2.0.0)(@powersync/shared-internals@1.1.1(@powersync/common@2.0.0))':
     dependencies:
       '@journeyapps/wa-sqlite': 2.0.3
-      '@powersync/common': 2.0.0
+      '@powersync/common': 2.1.0
       '@powersync/shared-internals': 1.1.1(@powersync/common@2.0.0)
       comlink: 4.4.2
       commander: 12.1.0
