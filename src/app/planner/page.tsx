@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { PowerSyncSystemProvider } from '@/lib/powersync/system-provider';
+import { AppShell } from '@/components/app-shell/app-shell';
 
 export default async function PlannerPage() {
   const supabase = await createServerSupabaseClient();
@@ -12,9 +13,7 @@ export default async function PlannerPage() {
 
   return (
     <PowerSyncSystemProvider>
-      <main className="min-h-screen bg-background p-6">
-        <h1 className="text-2xl font-semibold">Мой планер</h1>
-      </main>
+      <AppShell userId={data.claims.sub} />
     </PowerSyncSystemProvider>
   );
 }

@@ -2,8 +2,10 @@ import type { CommonPowerSyncDatabase } from '@powersync/web';
 import type { CreateTaskInput, Task, TaskPriority, TaskStatus, UpdateTaskInput } from './task-types';
 
 // Column names mirror the local SQLite `tasks` table (and, in turn,
-// `supabase/migrations/202608270001_foundation.sql`) exactly.
-type TaskRow = {
+// `supabase/migrations/202608270001_foundation.sql`) exactly. Exported so
+// `use-backlog-tasks.ts` can type its watched query's raw rows without
+// redeclaring the shape.
+export type TaskRow = {
   id: string;
   user_id: string;
   area_id: string | null;
@@ -24,14 +26,17 @@ type TaskRow = {
   updated_at: string;
 };
 
-const TASK_COLUMNS = `id, user_id, area_id, goal_id, title, description, status, scheduled_date,
+// Exported so `use-backlog-tasks.ts` can build its watched query against the
+// exact same column list the one-off `listBacklogTasks` query below uses.
+export const TASK_COLUMNS = `id, user_id, area_id, goal_id, title, description, status, scheduled_date,
        start_at, end_at, all_day, priority, completed_at, reschedule_count,
        sort_order, field_versions, created_at, updated_at`;
 
-// Single private mapper used by every task query - converts SQLite's
-// integer boolean representation and JSON text column to real TypeScript
-// booleans/objects.
-function mapTaskRow(row: TaskRow): Task {
+// Single mapper used by every task query - converts SQLite's integer boolean
+// representation and JSON text column to real TypeScript booleans/objects.
+// Exported so `use-backlog-tasks.ts` maps rows identically to the one-off
+// queries below, instead of maintaining a second mapping.
+export function mapTaskRow(row: TaskRow): Task {
   return {
     id: row.id,
     userId: row.user_id,

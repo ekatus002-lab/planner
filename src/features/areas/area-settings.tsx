@@ -1,0 +1,205 @@
+'use client';
+
+import { useState, type FormEvent } from 'react';
+import { usePowerSync } from '@powersync/react';
+import type { CommonPowerSyncDatabase } from '@powersync/web';
+import { useAreas } from './use-areas';
+import { createArea, reorderAreas, setAreaArchived, updateArea } from './area-repository';
+import type { Area } from './area-types';
+
+const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+const DEFAULT_NEW_COLOR = '#9CA3AF';
+const SAVE_ERROR_MESSAGE = 'Не удалось сохранить сферу жизни';
+
+type Props = { userId: string };
+
+export function AreaSettings({ userId }: Props) {
+  const db = usePowerSync() as CommonPowerSyncDatabase | null;
+  const { areas } = useAreas(userId);
+
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState(DEFAULT_NEW_COLOR);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!db) {
+      setError(SAVE_ERROR_MESSAGE);
+      return;
+    }
+
+    try {
+      await createArea(db, { userId, name: newName, color: newColor });
+      setNewName('');
+      setNewColor(DEFAULT_NEW_COLOR);
+      setError(null);
+    } catch {
+      setError(SAVE_ERROR_MESSAGE);
+    }
+  }
+
+  async function handleMove(index: number, direction: -1 | 1) {
+    if (!db) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= areas.length) return;
+
+    const orderedIds = areas.map((area) => area.id);
+    const [movedId] = orderedIds.splice(index, 1);
+    orderedIds.splice(targetIndex, 0, movedId);
+    await reorderAreas(db, orderedIds);
+  }
+
+  async function handleRename(area: Area, name: string) {
+    if (!db) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === area.name) return;
+    await updateArea(db, area.id, { name: trimmed });
+  }
+
+  async function handleRecolor(area: Area, color: string) {
+    if (!db) return;
+    if (color === area.color || !HEX_COLOR_PATTERN.test(color)) return;
+    await updateArea(db, area.id, { color });
+  }
+
+  async function handleArchive(area: Area) {
+    if (!db) return;
+    await setAreaArchived(db, area.id, true);
+  }
+
+  return (
+    <section aria-label="Сферы жизни" className="space-y-4">
+      <h2 className="text-lg font-semibold">Сферы жизни</h2>
+
+      <ul className="space-y-2">
+        {areas.map((area, index) => (
+          <AreaRow
+            key={area.id}
+            area={area}
+            canMoveUp={index > 0}
+            canMoveDown={index < areas.length - 1}
+            onMoveUp={() => handleMove(index, -1)}
+            onMoveDown={() => handleMove(index, 1)}
+            onRename={(name) => handleRename(area, name)}
+            onRecolor={(color) => handleRecolor(area, color)}
+            onArchive={() => handleArchive(area)}
+          />
+        ))}
+      </ul>
+
+      <form onSubmit={handleCreate} className="flex items-end gap-2">
+        <label className="block">
+          <span>Название</span>
+          <input
+            aria-label="Название сферы"
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span>Цвет</span>
+          <input
+            type="color"
+            aria-label="Цвет сферы"
+            value={newColor}
+            onChange={(event) => setNewColor(event.target.value)}
+          />
+        </label>
+        <button type="submit">Добавить сферу</button>
+      </form>
+
+      {error && <p role="alert">{error}</p>}
+    </section>
+  );
+}
+
+type AreaRowProps = {
+  area: Area;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRename: (name: string) => void;
+  onRecolor: (color: string) => void;
+  onArchive: () => void;
+};
+
+function AreaRow({
+  area,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onRename,
+  onRecolor,
+  onArchive,
+}: AreaRowProps) {
+  // Local drafts let typing/blur-to-commit behave normally without the
+  // reactive `useAreas` query (which re-renders on every table write)
+  // clobbering an in-progress edit. `prevName`/`prevColor` let us resync a
+  // draft whenever the *persisted* value changes (e.g. after the commit
+  // below lands, or an edit made elsewhere) using React's "adjust state
+  // during render" pattern - deliberately not a `useEffect`, which would
+  // call setState a render late and cascade an extra render per keystroke's
+  // eventual commit.
+  const [nameDraft, setNameDraft] = useState(area.name);
+  const [hexDraft, setHexDraft] = useState(area.color);
+  const [prevName, setPrevName] = useState(area.name);
+  const [prevColor, setPrevColor] = useState(area.color);
+
+  if (area.name !== prevName) {
+    setPrevName(area.name);
+    setNameDraft(area.name);
+  }
+  if (area.color !== prevColor) {
+    setPrevColor(area.color);
+    setHexDraft(area.color);
+  }
+
+  return (
+    <li className="flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="inline-block h-3 w-3 rounded-full"
+        style={{ backgroundColor: area.color }}
+      />
+      <input
+        aria-label={`Название: ${area.name}`}
+        value={nameDraft}
+        onChange={(event) => setNameDraft(event.target.value)}
+        onBlur={() => onRename(nameDraft)}
+      />
+      <input
+        type="color"
+        aria-label={`Цвет: ${area.name}`}
+        value={area.color}
+        onChange={(event) => onRecolor(event.target.value)}
+      />
+      <input
+        aria-label={`Hex: ${area.name}`}
+        value={hexDraft}
+        onChange={(event) => setHexDraft(event.target.value)}
+        onBlur={() => onRecolor(hexDraft)}
+      />
+      <button
+        type="button"
+        aria-label={`Переместить вверх: ${area.name}`}
+        onClick={onMoveUp}
+        disabled={!canMoveUp}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        aria-label={`Переместить вниз: ${area.name}`}
+        onClick={onMoveDown}
+        disabled={!canMoveDown}
+      >
+        ↓
+      </button>
+      <button type="button" aria-label={`Архивировать: ${area.name}`} onClick={onArchive}>
+        Архивировать
+      </button>
+    </li>
+  );
+}
