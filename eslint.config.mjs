@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Pre-bundled PowerSync worker assets copied into `public/` by
+    // `scripts/copy-powersync-worker.mjs` - not source we own or want linted.
+    "public/@powersync/**",
   ]),
 ]);
 
