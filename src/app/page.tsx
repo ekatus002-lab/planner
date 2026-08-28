@@ -1,7 +1,9 @@
-export default function Home() {
-  return (
-    <main className="min-h-screen bg-background p-6">
-      <h1 className="text-2xl font-semibold">Мой планер</h1>
-    </main>
-  );
+import { redirect } from 'next/navigation';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+
+export default async function Home() {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase.auth.getClaims();
+
+  redirect(data?.claims ? '/planner' : '/auth');
 }
