@@ -34,6 +34,41 @@ function loadEnvLocal() {
   }
 }
 
+// Hostnames this script is allowed to run against. It creates real accounts
+// via the service-role admin API, so a misconfigured `.env.local` (or a
+// future CI environment) accidentally pointed at a shared/staging/prod
+// Supabase project must never be able to silently do that there.
+// `URL#hostname` keeps the brackets on an IPv6 literal (e.g. `[::1]`), so
+// both forms are listed.
+const LOCAL_SUPABASE_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+/**
+ * Throws unless `supabaseUrl` points at a local Supabase instance. Exported
+ * for unit testing (see `global-setup.test.ts`); called from `globalSetup`
+ * before anything that talks to Supabase.
+ */
+export function assertLocalSupabaseUrl(supabaseUrl: string): void {
+  let hostname: string;
+  try {
+    hostname = new URL(supabaseUrl).hostname;
+  } catch {
+    throw new Error(
+      `tests/e2e/global-setup.ts: NEXT_PUBLIC_SUPABASE_URL ("${supabaseUrl}") is not a valid URL.`,
+    );
+  }
+
+  if (!LOCAL_SUPABASE_HOSTNAMES.has(hostname)) {
+    throw new Error(
+      `tests/e2e/global-setup.ts refused to run against "${supabaseUrl}": its hostname ` +
+        `("${hostname}") is not one of ${[...LOCAL_SUPABASE_HOSTNAMES].join(', ')}. This script ` +
+        'creates real user accounts via the Supabase service-role admin API - it must only ever ' +
+        'run against a local Supabase instance, never a shared/staging/production project. If ' +
+        'NEXT_PUBLIC_SUPABASE_URL is genuinely meant to point elsewhere, this guard needs a ' +
+        'deliberate, reviewed change, not a workaround.',
+    );
+  }
+}
+
 /**
  * Reproduces the cookie `@supabase/ssr`'s `createBrowserClient` would have
  * written after a real sign-in: JSON-serialize the session, base64url-encode
@@ -63,6 +98,8 @@ export default async function globalSetup() {
         'an authenticated Playwright storage state (see .env.local).',
     );
   }
+
+  assertLocalSupabaseUrl(supabaseUrl);
 
   const email = `e2e-${randomUUID()}@example.com`;
   const password = `E2e-${randomUUID()}`;

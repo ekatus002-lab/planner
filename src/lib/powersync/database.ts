@@ -1,5 +1,6 @@
 import { PowerSyncDatabase, WASQLiteVFS, type WebSQLOpenOptions } from '@powersync/web';
 import { AppSchema } from './app-schema';
+import { supportsOPFS, supportsSharedWorker } from './browser-capabilities';
 
 // Path to the worker asset copied into `public/@powersync/worker` by
 // `scripts/copy-powersync-worker.mjs` (wired up as a `postinstall` step). We
@@ -9,17 +10,6 @@ import { AppSchema } from './app-schema';
 const POWERSYNC_WORKER_URL = '/@powersync/worker/worker.js';
 
 const DB_FILENAME = 'planner.sqlite';
-
-function supportsOPFS(): boolean {
-  return (
-    typeof navigator !== 'undefined' &&
-    typeof navigator.storage?.getDirectory === 'function'
-  );
-}
-
-function supportsSharedWorker(): boolean {
-  return typeof window !== 'undefined' && 'SharedWorker' in window;
-}
 
 // Prefer OPFSCoopSyncVFS for reliable, multi-tab-safe persistence (this is
 // the VFS PowerSync recommends for Safari/iOS). Fall back to the library's
