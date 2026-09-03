@@ -7,6 +7,24 @@ const nextConfig: NextConfig = {
   // `scripts/copy-powersync-worker.mjs`). Keep them out of Next's server
   // bundling/transform pipeline entirely.
   serverExternalPackages: ['@powersync/web', '@journeyapps/wa-sqlite'],
+
+  // The OPFSCoopSyncVFS worker PowerSync loads for local-first storage uses
+  // `SharedArrayBuffer` for its synchronous access handle pool. Browsers only
+  // expose `SharedArrayBuffer` in a cross-origin-isolated context, so every
+  // route (the document and the worker/wasm assets it dynamically imports
+  // from `/@powersync/worker`) needs these two headers - without them,
+  // `SharedArrayBuffer` is undefined and the worker fails to load.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
