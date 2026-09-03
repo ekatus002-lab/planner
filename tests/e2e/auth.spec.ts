@@ -78,7 +78,10 @@ test.describe('magic link sign-in', () => {
     await page.getByLabel('Email').fill(email);
     await page.getByRole('button', { name: 'Получить ссылку' }).click();
 
-    await expect(page.getByRole('alert')).toBeVisible();
+    // Scoped to the request-error copy specifically: Next.js's own route
+    // announcer (`#__next-route-announcer__`) also carries `role="alert"`,
+    // so an unscoped `getByRole('alert')` matches both.
+    await expect(page.getByText(/не удалось отправить ссылку/i)).toBeVisible();
     await expect(
       page.getByText('Мы отправили ссылку для входа на вашу почту. Проверьте письмо.'),
     ).not.toBeVisible();

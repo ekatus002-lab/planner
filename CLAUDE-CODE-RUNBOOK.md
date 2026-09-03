@@ -124,6 +124,28 @@ for local dev), and the repository's `powersync/sync-streams.yaml` deployed
 as the PowerSync service's `sync_config` (mirrored locally at
 `.powersync-selfhost/powersync/sync-config.yaml`, step 2 above).
 
+### After `pnpm dlx supabase db reset`
+
+`supabase db reset` drops and recreates the *entire* local Postgres database
+from the migrations. PowerSync's self-hosted stack keeps state tied to that
+specific database instance - its own sync-bucket storage (the `pg-storage`
+container) remembers a replication slot name and last-replicated LSN that no
+longer exist after a reset, so sync silently stops working ("Replication
+slot ... is missing" in `docker logs powersync-selfhost-powersync-1`) until
+that state is cleared. After every `db reset`, also reset the PowerSync
+stack's own storage:
+
+```bash
+cd .powersync-selfhost
+docker compose --env-file .env -p powersync-selfhost down -v
+docker compose --env-file .env -p powersync-selfhost up -d
+```
+
+(The `powersync` publication itself - required for PowerSync's Postgres
+replication connection - is recreated automatically by migration
+`202609030002_powersync_publication.sql`; only PowerSync's own storage needs
+manual clearing.)
+
 ---
 
 ## Prompt 1 — Review Slice A before moving on
