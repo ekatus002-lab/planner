@@ -13,6 +13,14 @@ import path from 'node:path';
 // `getClaims()` check); it only supplies the cookie a real sign-in would have
 // produced.
 const STORAGE_STATE_PATH = path.resolve(__dirname, '.auth/user.json');
+// Signup is disabled server-side (`supabase/config.toml`'s
+// `enable_signup = false` - this app is single-user by design). That means
+// `auth.spec.ts`'s "existing user requests a magic link" case can no longer
+// use a fresh random email - it needs the email of a real, already-created
+// user. Persisting it here (never the password/session) lets that spec reuse
+// exactly the account this file already provisions via the admin API,
+// instead of provisioning a second one.
+export const USER_META_PATH = path.resolve(__dirname, '.auth/user-meta.json');
 const APP_COOKIE_DOMAIN = 'localhost';
 
 function loadEnvLocal() {
@@ -134,6 +142,7 @@ export default async function globalSetup() {
   const cookie = buildSupabaseAuthCookie(supabaseUrl, signInData.session);
 
   mkdirSync(path.dirname(STORAGE_STATE_PATH), { recursive: true });
+  writeFileSync(USER_META_PATH, JSON.stringify({ email }, null, 2));
   writeFileSync(
     STORAGE_STATE_PATH,
     JSON.stringify(
