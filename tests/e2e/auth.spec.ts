@@ -16,10 +16,13 @@ function existingUserEmail(): string {
 }
 
 // Polls the local Supabase Mailpit inbox (http://127.0.0.1:54324) for a
-// message sent to `email`, so the "magic link sign-in" test verifies an
-// email was actually queued by Supabase Auth - not just that the UI shows
-// its (unconditional, pre-fix) success copy.
-async function waitForMailpitMessageTo(email: string, timeoutMs = 10_000): Promise<unknown> {
+// message sent to `email`, so the sign-in tests verify an email was
+// actually queued by Supabase Auth - not just that the UI shows its
+// (unconditional, pre-fix) success copy.
+async function waitForMailpitMessageTo(
+  email: string,
+  timeoutMs = 10_000,
+): Promise<{ ID: string; To: { Address: string }[] }> {
   const deadline = Date.now() + timeoutMs;
   let lastCount = 0;
 
@@ -27,7 +30,10 @@ async function waitForMailpitMessageTo(email: string, timeoutMs = 10_000): Promi
     const response = await fetch(
       `${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`,
     );
-    const body = (await response.json()) as { count: number; messages: unknown[] };
+    const body = (await response.json()) as {
+      count: number;
+      messages: { ID: string; To: { Address: string }[] }[];
+    };
     lastCount = body.count;
     if (body.count > 0) {
       return body.messages[0];
@@ -38,6 +44,20 @@ async function waitForMailpitMessageTo(email: string, timeoutMs = 10_000): Promi
   throw new Error(`No Mailpit message arrived for ${email} within ${timeoutMs}ms (last count: ${lastCount})`);
 }
 
+// Extracts the 6-digit sign-in code from the email body (see
+// `supabase/templates/magic_link.html`'s `{{ .Token }}`), so the "sign in
+// with a code" test proves the digits shown to the user actually work,
+// rather than only that some email arrived.
+async function readOtpCode(messageId: string): Promise<string> {
+  const response = await fetch(`${MAILPIT_URL}/api/v1/message/${messageId}`);
+  const body = (await response.json()) as { Text?: string; HTML?: string };
+  const match = (body.Text ?? body.HTML ?? '').match(/\b\d{6}\b/);
+  if (!match) {
+    throw new Error(`No 6-digit code found in Mailpit message ${messageId}`);
+  }
+  return match[0];
+}
+
 test.describe('route protection', () => {
   test('redirects an unauthenticated visitor from /planner to /auth', async ({ page }) => {
     await page.goto('/planner');
@@ -46,27 +66,33 @@ test.describe('route protection', () => {
   });
 });
 
-test.describe('magic link sign-in', () => {
-  test('requesting a magic link for an existing user actually queues an email', async ({ page }) => {
+// Serial: these tests share one fixed email (`existingUserEmail()`), and
+// Supabase invalidates a user's prior OTP when a new one is requested -
+// running them concurrently would race two codes against the same address
+// and could pick up the wrong (superseded) one from Mailpit.
+test.describe.serial('code sign-in', () => {
+  test('an existing user can request a code, enter it, and reach the planner', async ({ page }) => {
     const email = existingUserEmail();
 
     await page.goto('/auth');
     await page.getByLabel('Email').fill(email);
-    await page.getByRole('button', { name: 'Получить ссылку' }).click();
-
-    await expect(
-      page.getByText('Мы отправили ссылку для входа на вашу почту. Проверьте письмо.'),
-    ).toBeVisible();
+    await page.getByRole('button', { name: 'Получить код' }).click();
 
     // Proves the backend actually accepted and processed the request (a
-    // misconfigured SMTP/redirect-allowlist would show identical UI success
-    // copy while queuing nothing) rather than only asserting the client-side
-    // success message.
-    const message = (await waitForMailpitMessageTo(email)) as { To: { Address: string }[] };
+    // misconfigured SMTP setup would show identical UI success copy while
+    // queuing nothing) rather than only asserting the client-side transition.
+    const message = await waitForMailpitMessageTo(email);
     expect(message.To.some((recipient) => recipient.Address === email)).toBe(true);
+    const code = await readOtpCode(message.ID);
+
+    await page.getByLabel('Код из письма').fill(code);
+    await page.getByRole('button', { name: 'Войти' }).click();
+
+    await expect(page).toHaveURL(/\/planner$/);
+    await expect(page.getByRole('heading', { name: 'Мой планер' })).toBeVisible();
   });
 
-  test('requesting a magic link for an unknown email shows an error, not a false success', async ({
+  test('requesting a code for an unknown email shows an error, not a false success', async ({
     page,
   }) => {
     // Signups are disabled (`supabase/config.toml`'s `enable_signup = false`
@@ -76,15 +102,26 @@ test.describe('magic link sign-in', () => {
 
     await page.goto('/auth');
     await page.getByLabel('Email').fill(email);
-    await page.getByRole('button', { name: 'Получить ссылку' }).click();
+    await page.getByRole('button', { name: 'Получить код' }).click();
 
     // Scoped to the request-error copy specifically: Next.js's own route
     // announcer (`#__next-route-announcer__`) also carries `role="alert"`,
     // so an unscoped `getByRole('alert')` matches both.
-    await expect(page.getByText(/не удалось отправить ссылку/i)).toBeVisible();
-    await expect(
-      page.getByText('Мы отправили ссылку для входа на вашу почту. Проверьте письмо.'),
-    ).not.toBeVisible();
+    await expect(page.getByText(/не удалось отправить код/i)).toBeVisible();
+    await expect(page.getByLabel('Код из письма')).not.toBeVisible();
+  });
+
+  test('entering the wrong code shows an error and stays on /auth', async ({ page }) => {
+    const email = existingUserEmail();
+
+    await page.goto('/auth');
+    await page.getByLabel('Email').fill(email);
+    await page.getByRole('button', { name: 'Получить код' }).click();
+    await page.getByLabel('Код из письма').fill('000000');
+    await page.getByRole('button', { name: 'Войти' }).click();
+
+    await expect(page.getByText(/неверный или устаревший код/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/auth$/);
   });
 });
 

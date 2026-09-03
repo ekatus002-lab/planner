@@ -1,41 +1,26 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { MagicLinkForm } from '@/components/auth/magic-link-form';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { OtpSignInForm } from '@/components/auth/otp-sign-in-form';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
-function AuthError() {
-  const searchParams = useSearchParams();
-  const error = searchParams.get('error');
-
-  if (error !== 'invalid-link') {
-    return null;
-  }
-
-  return (
-    <p role="alert" className="mt-4 text-sm text-red-600">
-      Ссылка недействительна или устарела. Запросите новую.
-    </p>
-  );
-}
-
-const REQUEST_ERROR_MESSAGE = 'Не удалось отправить ссылку для входа. Попробуйте ещё раз позже.';
+const REQUEST_ERROR_MESSAGE = 'Не удалось отправить код для входа. Попробуйте ещё раз позже.';
+const VERIFY_ERROR_MESSAGE = 'Неверный или устаревший код. Запросите новый.';
 
 export default function AuthPage() {
-  const [sent, setSent] = useState(false);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  async function requestMagicLink(email: string) {
+  async function requestCode(email: string): Promise<boolean> {
     const supabase = createBrowserSupabaseClient();
     const { error: requestError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
         // This is a private, single-user app (see the design spec): open
         // signup is disabled server-side (`supabase/config.toml`'s
         // `enable_signup = false`), and this makes that intent explicit at
-        // the call site too - only an existing user may request a link.
+        // the call site too - only an existing user may request a code.
         shouldCreateUser: false,
       },
     });
@@ -43,36 +28,43 @@ export default function AuthPage() {
     if (requestError) {
       // A local Supabase/PowerSync write failure is blocking elsewhere in
       // this app (role="alert", form stays open); the same rule applies
-      // here: a failed magic-link request must never look like success.
+      // here: a failed code request must never look like success.
       setError(REQUEST_ERROR_MESSAGE);
-      setSent(false);
+      return false;
+    }
+
+    setError(null);
+    return true;
+  }
+
+  async function verifyCode(email: string, code: string) {
+    const supabase = createBrowserSupabaseClient();
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'email',
+    });
+
+    if (verifyError) {
+      setError(VERIFY_ERROR_MESSAGE);
       return;
     }
 
     setError(null);
-    setSent(true);
+    router.push('/planner');
   }
 
   return (
     <main className="min-h-screen bg-background p-6">
       <h1 className="text-2xl font-semibold">Вход в планер</h1>
-      <Suspense fallback={null}>
-        <AuthError />
-      </Suspense>
       {error && (
         <p role="alert" className="mt-4 text-sm text-red-600">
           {error}
         </p>
       )}
-      {sent ? (
-        <p className="mt-4 text-sm">
-          Мы отправили ссылку для входа на вашу почту. Проверьте письмо.
-        </p>
-      ) : (
-        <div className="mt-4">
-          <MagicLinkForm onSubmit={requestMagicLink} />
-        </div>
-      )}
+      <div className="mt-4">
+        <OtpSignInForm onRequestCode={requestCode} onVerifyCode={verifyCode} />
+      </div>
     </main>
   );
 }
