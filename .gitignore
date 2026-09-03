@@ -16,6 +16,9 @@
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+# Playwright storage state produced by tests/e2e/global-setup.ts; holds a
+# live Supabase session token for a throwaway local test user.
+/tests/e2e/.auth/
 
 # next.js
 /.next/

@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Provisions a throwaway Supabase auth test user and mints a Playwright
+  // storage state file (tests/e2e/.auth/user.json) that authenticated specs
+  // opt into via `test.use({ storageState })`.
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
