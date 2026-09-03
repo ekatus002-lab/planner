@@ -22,6 +22,9 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
       'tests/e2e/**/*.spec.ts',
+      // Claude Code tooling state - may contain nested git worktrees with
+      // their own copy of this same test suite; never run those here.
+      '.claude/**',
     ],
   },
   resolve: {

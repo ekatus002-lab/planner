@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     // Pre-bundled PowerSync worker assets copied into `public/` by
     // `scripts/copy-powersync-worker.mjs` - not source we own or want linted.
     "public/@powersync/**",
+    // Claude Code tooling state - may contain nested git worktrees with
+    // their own node_modules/.next build output; never our source.
+    ".claude/**",
   ]),
 ]);
 

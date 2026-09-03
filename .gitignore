@@ -47,3 +47,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code tooling state (worktrees, settings) - never part of the app
+/.claude/
