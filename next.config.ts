@@ -15,14 +15,17 @@ const nextConfig: NextConfig = {
   // from `/@powersync/worker`) needs these two headers - without them,
   // `SharedArrayBuffer` is undefined and the worker fails to load.
   async headers() {
+    const coopCoep = [
+      { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+      { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+    ];
     return [
-      {
-        source: '/:path*',
-        headers: [
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-        ],
-      },
+      { source: '/:path*', headers: coopCoep },
+      // Some CDNs apply next.config.ts headers to the document but not to
+      // static assets under `public/` - repeat the rule explicitly for the
+      // worker path PowerSync's SharedArrayBuffer-dependent VFS depends on,
+      // so a production host that behaves that way is still covered.
+      { source: '/@powersync/worker/:path*', headers: coopCoep },
     ];
   },
 };

@@ -326,3 +326,86 @@ Session 9: Final code review
 ```
 
 The conflict subsystem gets its own session because it is the easiest part of the project to make look correct while still losing edits under real two-device concurrency.
+
+---
+
+## Production deployment (Vercel + Supabase Cloud + PowerSync Cloud)
+
+Chosen hosting strategy for this single-user app: fully managed, no server to
+administer. Local dev keeps using self-hosted Supabase + PowerSync
+(`.powersync-selfhost/`); production uses the managed equivalents below.
+
+### 1. Supabase Cloud
+
+1. Create a project in the Supabase dashboard.
+2. Link and push migrations:
+   ```bash
+   pnpm dlx supabase link --project-ref <project-ref>
+   pnpm dlx supabase db push
+   ```
+   This applies `supabase/migrations/*.sql`, including the `powersync`
+   publication migration — no manual publication setup needed.
+3. **Auth → URL Configuration**: Site URL = production domain; Redirect
+   URLs = `<production domain>/auth/confirm`. (This is the cloud-dashboard
+   equivalent of the `site_url`/`additional_redirect_urls` fix in
+   `supabase/config.toml` for local dev — it does not push automatically.)
+4. **Auth → Sign In / Email provider**: disable "Allow new users to sign
+   up" (cloud equivalent of `enable_signup = false`).
+5. **Auth → SMTP Settings**: configure a real provider (e.g. Resend) —
+   Supabase's built-in mailer is rate-limited and unsuitable even for one
+   active user.
+6. **Authentication → Users → Add user**: create the one real account
+   (your email, Auto Confirm) — this app has no self-service signup by
+   design.
+7. Note whether the project uses a legacy JWT secret or the newer
+   asymmetric signing keys (**Settings → API**) — needed for the PowerSync
+   step below.
+
+### 2. PowerSync Cloud
+
+1. Create an instance (same region as the Supabase project if possible).
+2. In Supabase SQL Editor, create a dedicated replication role (kept
+   separate from the app's RLS-bound `authenticated` role):
+   ```sql
+   CREATE ROLE powersync_role WITH REPLICATION BYPASSRLS LOGIN PASSWORD '<strong password>';
+   GRANT SELECT ON ALL TABLES IN SCHEMA public TO powersync_role;
+   ```
+3. **Database Connections → Connect to Source Database**: use Supabase's
+   **direct** (non-pooled/non-Supavisor) connection string, with
+   `powersync_role`'s credentials.
+4. **Client Auth → Use Supabase Auth**: paste the legacy JWT secret if
+   applicable; otherwise leave blank (PowerSync auto-discovers the JWKS
+   endpoint for projects using the newer signing keys).
+5. **Sync Streams**: paste `powersync/sync-streams.yaml` as-is (same
+   edition-3 format PowerSync Cloud expects) → Validate → Deploy.
+6. Record the instance URL for `NEXT_PUBLIC_POWERSYNC_URL` below.
+
+### 3. Vercel
+
+1. Import the GitHub repo as a new Vercel project.
+2. Production environment variables:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<Settings → API>
+   NEXT_PUBLIC_POWERSYNC_URL=<PowerSync instance URL>
+   ```
+   `SUPABASE_SERVICE_ROLE_KEY` is dev/test-only (`tests/e2e/global-setup.ts`)
+   and must not be set in production.
+3. Deploy with the default build command (`pnpm build`) — `postinstall`
+   (PowerSync worker asset copy) runs automatically as part of `pnpm
+   install` on Vercel, no extra config needed.
+4. **Post-deploy check, every time**: open the production URL, DevTools
+   Console → `window.crossOriginIsolated` must be `true`. The COOP/COEP
+   headers in `next.config.ts` are known to sometimes not reach worker
+   scripts on some CDNs even when they reach the document — if this comes
+   back `false`, treat it as a real defect, not a formality.
+
+### Post-deploy verification checklist
+
+```text
+[ ] Magic link email actually arrives at a real inbox (via the configured SMTP provider, not local Mailpit).
+[ ] Five default life areas appear for the one provisioned account.
+[ ] Creating a task while offline (DevTools network throttling) survives a reload; sync status shows Offline → Synced on reconnect.
+[ ] A second browser profile/device signed in as the same account receives the synced task.
+[ ] window.crossOriginIsolated === true in the browser console.
+```
