@@ -73,6 +73,38 @@ async function nextSortOrder(db: CommonPowerSyncDatabase, userId: string): Promi
   return (row?.max_sort_order ?? 0) + 10;
 }
 
+// Mirrors the server-only `areas_user_name_active_idx` unique index
+// (`user_id, lower(name) where archived = 0` -
+// `supabase/migrations/202608270001_foundation.sql`) locally, before the
+// write ever reaches PowerSync's upload queue. Without this, creating or
+// renaming an area to a name that collides case-insensitively with an
+// existing non-archived area would succeed locally and then fail forever on
+// upload (see `uploadData`'s permanent-error handling in
+// `backend-connector.ts`) with no user-visible way to fix it.
+async function assertNameAvailable(
+  db: CommonPowerSyncDatabase,
+  userId: string,
+  name: string,
+  excludeId?: string,
+): Promise<void> {
+  // Case-insensitivity is deliberately done in JS, not SQL: SQLite's built-in
+  // `lower()` only folds ASCII (no ICU extension loaded here), so it would
+  // silently miss collisions between e.g. "Творчество" and "ТВОРЧЕСТВО".
+  // Postgres's `lower()` (used by the server-side `areas_user_name_active_idx`
+  // unique index this mirrors) *is* Unicode-aware, so JS's `toLowerCase()` -
+  // also Unicode-aware - is the correct local equivalent, not a SQL `lower()`
+  // predicate.
+  const rows = await db.getAll<{ id: string; name: string }>(
+    'SELECT id, name FROM areas WHERE user_id = ? AND archived = 0',
+    [userId],
+  );
+  const target = name.toLowerCase();
+  const collision = rows.some((row) => row.id !== excludeId && row.name.toLowerCase() === target);
+  if (collision) {
+    throw new Error('Area name already exists');
+  }
+}
+
 // Creates a new, non-archived life area. New-task selectors (`useAreas`)
 // pick this up immediately since it watches the same `archived = 0` query.
 export async function createArea(db: CommonPowerSyncDatabase, input: CreateAreaInput): Promise<Area> {
@@ -81,6 +113,7 @@ export async function createArea(db: CommonPowerSyncDatabase, input: CreateAreaI
   if (!HEX_COLOR_PATTERN.test(input.color)) {
     throw new Error('Area color must be a 6-digit hex value (e.g. #112233)');
   }
+  await assertNameAvailable(db, input.userId, name);
 
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -114,6 +147,13 @@ export async function updateArea(db: CommonPowerSyncDatabase, id: string, patch:
   if (patch.name !== undefined) {
     const name = patch.name.trim();
     if (!name) throw new Error('Area name is required');
+    const current = await db.getOptional<{ user_id: string }>(
+      'SELECT user_id FROM areas WHERE id = ?',
+      [id],
+    );
+    if (current) {
+      await assertNameAvailable(db, current.user_id, name, id);
+    }
     assignments.push('name = ?');
     values.push(name);
   }

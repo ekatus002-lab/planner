@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
-import { listAreas } from './area-repository';
+import { createArea, listAreas, updateArea } from './area-repository';
 
 type SeedAreaOverrides = Partial<{
   id: string;
@@ -69,5 +69,59 @@ describe('area-repository', () => {
     await seedArea(db, { userId: 'user-2' });
 
     expect(await listAreas(db, 'user-1')).toEqual([]);
+  });
+
+  describe('createArea uniqueness guard', () => {
+    // Postgres enforces this with a unique index
+    // (`areas_user_name_active_idx` on `user_id, lower(name) where archived
+    // = 0`), but that index is server-only: without a matching local check,
+    // a duplicate name would write locally, then fail forever once
+    // `uploadData` tried to sync it. Guarding here keeps the failure
+    // immediate and user-visible instead of a wedged upload queue.
+    it('rejects a name that collides case-insensitively with an existing non-archived area', async () => {
+      await seedArea(db, { name: 'Творчество' });
+
+      await expect(
+        createArea(db, { userId: 'user-1', name: 'ТВОРЧЕСТВО', color: '#112233' }),
+      ).rejects.toThrow(/already exists/i);
+    });
+
+    it('allows the same name for a different user', async () => {
+      await seedArea(db, { userId: 'user-1', name: 'Творчество' });
+
+      await expect(
+        createArea(db, { userId: 'user-2', name: 'Творчество', color: '#112233' }),
+      ).resolves.toMatchObject({ name: 'Творчество' });
+    });
+
+    it('allows a name that only collides with an archived area', async () => {
+      await seedArea(db, { name: 'Творчество', archived: 1 });
+
+      await expect(
+        createArea(db, { userId: 'user-1', name: 'Творчество', color: '#112233' }),
+      ).resolves.toMatchObject({ name: 'Творчество' });
+    });
+  });
+
+  describe('updateArea rename uniqueness guard', () => {
+    it('rejects renaming to a name that collides case-insensitively with another non-archived area', async () => {
+      await seedArea(db, { id: 'a', name: 'Карьера' });
+      await seedArea(db, { id: 'b', name: 'Учёба' });
+
+      await expect(updateArea(db, 'b', { name: 'КАРЬЕРА' })).rejects.toThrow(/already exists/i);
+    });
+
+    it('allows renaming an area to keep its own current name', async () => {
+      await seedArea(db, { id: 'a', name: 'Карьера' });
+
+      await expect(updateArea(db, 'a', { name: 'Карьера' })).resolves.toBeUndefined();
+    });
+
+    it('allows renaming to a name that only collides with an archived area', async () => {
+      await seedArea(db, { id: 'a', name: 'Творчество', archived: 1 });
+      await seedArea(db, { id: 'b', name: 'Учёба' });
+
+      await expect(updateArea(db, 'b', { name: 'Творчество' })).resolves.toBeUndefined();
+    });
   });
 });
