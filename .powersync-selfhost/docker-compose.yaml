@@ -1,0 +1,69 @@
+# Self-hosted PowerSync Open Edition, for local dev only.
+#
+# This stack is intentionally kept OUTSIDE of the app's normal `supabase/` and
+# `src/` trees so it is never picked up by the app repo's `git status` / commits.
+#
+# It connects to the already-running local Supabase stack (started separately
+# via `pnpm dlx supabase start` from the app worktree) by joining the Supabase
+# project's own docker network, so containers can address each other by name
+# instead of relying on host.docker.internal.
+#
+# Usage:
+#   docker compose --env-file .env -p powersync-selfhost up -d
+#   docker compose --env-file .env -p powersync-selfhost down
+#   docker compose --env-file .env -p powersync-selfhost logs -f powersync
+
+services:
+  # Dedicated Postgres instance used ONLY for PowerSync's own sync-bucket
+  # storage (checkpoints/buckets/operations). Fully separate from the
+  # Supabase Postgres, which is only used as a replication SOURCE.
+  pg-storage:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: powersync
+      POSTGRES_PASSWORD: powersync
+      POSTGRES_DB: powersync_storage
+    volumes:
+      - pg-storage-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U powersync -d powersync_storage"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+  powersync:
+    image: journeyapps/powersync-service:latest
+    restart: unless-stopped
+    depends_on:
+      pg-storage:
+        condition: service_healthy
+    command: ["start", "-r", "unified"]
+    env_file:
+      - .env
+    volumes:
+      - ./powersync:/config
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/probes/liveness',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - default
+      # Join the Supabase project's own network so we can reach the Supabase
+      # Postgres (supabase_db_slice-a-foundation) and Kong/GoTrue
+      # (supabase_kong_slice-a-foundation) containers by name.
+      - supabase_network_slice-a-foundation
+
+networks:
+  default:
+    name: powersync-selfhost_default
+  supabase_network_slice-a-foundation:
+    external: true
+
+volumes:
+  pg-storage-data:

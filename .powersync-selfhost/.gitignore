@@ -1,0 +1,5 @@
+# Real local secrets/config, generated from .env.example. Already covered by
+# the root .gitignore's `.env*` pattern; listed here too so this directory is
+# self-documenting on its own (it's deliberately kept outside the app's
+# normal supabase/ and src/ trees - see docker-compose.yaml's header comment).
+.env

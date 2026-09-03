@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-schema@latest/json-schema/powersync-config.json
+#
+# Self-hosted PowerSync Open Edition config for the Personal Planner local dev stack.
+# Connects to the already-running local Supabase Postgres (via the shared
+# supabase_network_slice-a-foundation docker network) and uses Postgres itself
+# as the sync-bucket storage backend (no MongoDB needed).
+
+telemetry:
+  disable_telemetry_sharing: true
+
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      sslmode: disable
+
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_SOURCE_URI
+  sslmode: disable
+
+port: !env PS_PORT
+
+sync_config:
+  path: sync-config.yaml
+
+client_auth:
+  # Verify JWTs issued by the local Supabase GoTrue auth server.
+  # Local Supabase (CLI v2.116.0) issues real user session tokens signed with
+  # an asymmetric ES256 key (confirmed by decoding a real signup access_token),
+  # exposed via GoTrue's JWKS endpoint reachable on the shared Supabase network.
+  # (We set jwks_uri explicitly rather than `supabase: true` -- that flag tries
+  # to auto-derive the JWKS URL from a *.supabase.co-style connection string,
+  # which doesn't match our local docker hostname, so it logs a warning and
+  # skips configuration entirely.)
+  jwks_uri: !env PS_JWKS_URL
+  audience: ["authenticated"]
+
+api:
+  tokens:
+    - use_a_better_token_in_production

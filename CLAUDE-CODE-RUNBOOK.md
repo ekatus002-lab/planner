@@ -38,17 +38,91 @@ Use superpowers:subagent-driven-development if available; otherwise use superpow
 Before claiming Slice A is complete, run every command in its Exit Gate and report the command outputs/results. If an external credential or dashboard action is genuinely required (Supabase/PowerSync), stop only at that exact checkpoint and tell me precisely which value/action is needed and where it goes; do not invent credentials and do not skip the verification.
 ```
 
-### External values Slice A will eventually need
+### Local environment setup (Supabase + self-hosted PowerSync)
 
-Create `.env.local` from `.env.example` and supply:
+This project does not use PowerSync Cloud. Both Supabase and PowerSync run
+locally via Docker, and PowerSync connects directly to the local Supabase
+Postgres instance as a logical-replication source.
 
-```dotenv
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-NEXT_PUBLIC_POWERSYNC_URL=...
-```
+1. **Start local Supabase** from the repository root:
 
-Supabase also needs the production/local redirect URLs configured for Magic Link. PowerSync Cloud needs a connection to the Supabase Postgres database, Supabase Auth enabled, and the repository's `powersync/sync-streams.yaml` deployed.
+   ```bash
+   pnpm dlx supabase start
+   ```
+
+   This starts Postgres (with `supabase/migrations/` applied), GoTrue (Auth),
+   Kong, Studio, and the local Mailpit mail-testing inbox
+   (`http://127.0.0.1:54324`), all inside a Docker network named
+   `supabase_network_<project_id>` (see `project_id` in
+   `supabase/config.toml`; the checked-in default is
+   `supabase_network_slice-a-foundation`).
+
+2. **Start the self-hosted PowerSync stack** in `.powersync-selfhost/` (a
+   separate, untracked-by-design directory outside `supabase/`/`src/` - see
+   the header comment in `.powersync-selfhost/docker-compose.yaml`):
+
+   ```bash
+   cd .powersync-selfhost
+   cp .env.example .env   # only if you don't already have one
+   docker compose --env-file .env -p powersync-selfhost up -d
+   ```
+
+   This stack joins the Supabase project's own Docker network so it can
+   reach the Supabase Postgres and Kong (GoTrue) containers by name (see
+   `.powersync-selfhost/.env`'s `PG_DATABASE_HOSTNAME`/`PS_JWKS_URL`), and
+   uses its own dedicated Postgres instance (`pg-storage`) purely for
+   PowerSync's internal sync-bucket storage - it never touches the Supabase
+   database except as a replication source. `.powersync-selfhost/powersync/`
+   holds `service.yaml` (connection/auth config) and `sync-config.yaml`
+   (== the repository's `powersync/sync-streams.yaml`; keep them in sync
+   manually - see the "known gaps" note in the design spec if this project
+   later ties them together). PowerSync serves on `http://127.0.0.1:8080`.
+
+3. **Create `.env.local`** from `.env.example` and supply:
+
+   ```dotenv
+   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # `pnpm dlx supabase status` prints this
+   NEXT_PUBLIC_POWERSYNC_URL=http://127.0.0.1:8080
+   SUPABASE_SERVICE_ROLE_KEY=...              # `pnpm dlx supabase status` prints this
+   ```
+
+   `SUPABASE_SERVICE_ROLE_KEY` is required for `pnpm test:e2e`:
+   `tests/e2e/global-setup.ts` uses it (via the Supabase admin API) to
+   provision a throwaway authenticated test user and mint a Playwright
+   storage state, so specs never have to drive the real Magic Link email
+   flow through a browser. That script refuses to run at all unless
+   `NEXT_PUBLIC_SUPABASE_URL` resolves to `localhost`/`127.0.0.1`/`::1`
+   (`assertLocalSupabaseUrl` in `tests/e2e/global-setup.ts`) - it creates
+   real accounts with the service-role key, so it must never be pointed at a
+   shared/staging/production Supabase project.
+
+4. **Signup is disabled** (`supabase/config.toml`'s `enable_signup = false`
+   - this is a private, single-user app by design). The only way to create a
+   new account is out-of-band via the Supabase admin API (exactly what
+   `global-setup.ts` does for tests); the public `/auth` Magic Link flow only
+   works for an email that already has an account.
+
+5. **First-time / after `pnpm install`**: the `postinstall` script
+   (`scripts/copy-powersync-worker.mjs`) copies PowerSync's pre-bundled
+   Web/SharedWorker bundle into `public/@powersync/worker/`. If that
+   directory is ever missing (e.g. after a clean checkout without running
+   `pnpm install`), the local PowerSync database will fail to open in the
+   browser; re-run `pnpm install` to restore it.
+
+6. **Cross-origin isolation headers are required**: `next.config.ts` sends
+   `Cross-Origin-Opener-Policy: same-origin` and
+   `Cross-Origin-Embedder-Policy: require-corp` on every route. PowerSync's
+   `OPFSCoopSyncVFS` worker needs `SharedArrayBuffer` for its synchronous
+   OPFS access-handle pool, which browsers only expose in a
+   cross-origin-isolated context - without these headers the worker fails to
+   load and the local database never initializes. Do not remove them.
+
+Supabase also needs the local/production redirect URLs configured for Magic
+Link (`supabase/config.toml`'s `[auth]` `site_url`/`additional_redirect_urls`
+for local dev), and the repository's `powersync/sync-streams.yaml` deployed
+as the PowerSync service's `sync_config` (mirrored locally at
+`.powersync-selfhost/powersync/sync-config.yaml`, step 2 above).
 
 ---
 
