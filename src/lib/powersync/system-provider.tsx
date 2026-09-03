@@ -60,8 +60,29 @@ export function PowerSyncSystemProvider({ children }: PowerSyncSystemProviderPro
       }
     });
 
+    // PowerSync's own retry/backoff loop can take a while to notice a lost
+    // connection or an unblocked network. React to the browser's own
+    // connectivity events too, so the sync status flips to "Offline"
+    // immediately when the network drops and reconnects promptly as soon as
+    // it's back - the local database write path never depends on this, but a
+    // snappy status keeps the exit criterion ("reconnect uploads queued
+    // changes ... another device receives them") observable within a normal
+    // test/manual-verification timeout.
+    function handleOffline() {
+      void plannerDb.disconnect();
+    }
+
+    function handleOnline() {
+      void connectIfSignedIn();
+    }
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
       void plannerDb.disconnect();
     };
   }, [supabase, connector]);

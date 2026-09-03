@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { AreaSettings } from '@/features/areas/area-settings';
 import { BacklogPanel } from '@/features/tasks/backlog-panel';
+import { SyncStatusIndicator } from '@/components/sync/sync-status';
 
 type Props = { userId: string };
 
@@ -17,9 +18,12 @@ export function AppShell({ userId }: Props) {
     <div className="flex h-screen flex-col bg-background">
       <header className="flex items-center justify-between border-b p-4">
         <h1 className="text-lg font-semibold">Мой планер</h1>
-        <button type="button" onClick={() => setIsAreaSettingsOpen((open) => !open)}>
-          {isAreaSettingsOpen ? 'Назад к планеру' : 'Сферы жизни'}
-        </button>
+        <div className="flex items-center gap-4">
+          <SyncStatusIndicator />
+          <button type="button" onClick={() => setIsAreaSettingsOpen((open) => !open)}>
+            {isAreaSettingsOpen ? 'Назад к планеру' : 'Сферы жизни'}
+          </button>
+        </div>
       </header>
 
       {isAreaSettingsOpen ? (
