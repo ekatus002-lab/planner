@@ -63,6 +63,23 @@ export function calculateBestStreak(
   return best;
 }
 
+// Raw expected/completed occurrence counts over `[startDate, endDate]` -
+// shared by `calculateHabitCompletionRate` (a single habit's own %) and by
+// callers that need to aggregate multiple habits into one combined figure
+// (the Habits panel's weekly "25 из 29" summary), where summing pre-rounded
+// per-habit percentages would be meaningless.
+export function calculateHabitCompletionCounts(
+  habit: Habit,
+  completions: HabitCompletion[],
+  startDate: string,
+  endDate: string,
+): { completed: number; expected: number } {
+  const expected = expectedHabitDates(habit, startDate, endDate);
+  const completedDates = completedDateSet(completions);
+  const completed = expected.filter((date) => completedDates.has(date)).length;
+  return { completed, expected: expected.length };
+}
+
 // `completed expected dates / expected dates * 100`, rounded to the nearest
 // integer; 0 when the window has no expected dates at all (never divide by
 // zero / never NaN).
@@ -72,12 +89,9 @@ export function calculateHabitCompletionRate(
   startDate: string,
   endDate: string,
 ): number {
-  const expected = expectedHabitDates(habit, startDate, endDate);
-  if (expected.length === 0) return 0;
-
-  const completedDates = completedDateSet(completions);
-  const completedCount = expected.filter((date) => completedDates.has(date)).length;
-  return Math.round((completedCount / expected.length) * 100);
+  const { completed, expected } = calculateHabitCompletionCounts(habit, completions, startDate, endDate);
+  if (expected === 0) return 0;
+  return Math.round((completed / expected) * 100);
 }
 
 export type DateRange = { start: string; end: string };

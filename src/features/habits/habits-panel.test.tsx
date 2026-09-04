@@ -82,6 +82,11 @@ describe('HabitsPanel', () => {
       expect(screen.getByRole('checkbox', { name: 'Выполнено сегодня: Английский' })).toBeChecked();
     });
     expect(screen.getByLabelText('Текущая серия: Английский')).toHaveTextContent('Серия 1');
+    // The top streak card surfaces the best current streak across all
+    // habits - with a single habit at streak 1, that's this habit's own.
+    expect(
+      screen.getByText((_, element) => element?.tagName === 'P' && element.textContent === 'streak 1'),
+    ).toBeInTheDocument();
   });
 
   it('un-completes an already-completed habit', async () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateBestStreak,
   calculateCurrentStreak,
+  calculateHabitCompletionCounts,
   calculateHabitCompletionRate,
 } from './habit-metrics';
 import type { Habit, HabitCompletion } from './habit-types';
@@ -115,5 +116,24 @@ describe('calculateHabitCompletionRate', () => {
     const habit = makeHabit({ weekdays: [1] });
     const completed = ['2026-08-24'].map((d) => makeCompletion(d));
     expect(calculateHabitCompletionRate(habit, completed, '2026-08-24', '2026-08-24')).toBe(100);
+  });
+});
+
+describe('calculateHabitCompletionCounts', () => {
+  it('returns the raw completed/expected counts a caller can sum across multiple habits', () => {
+    const habit = makeHabit({ weekdays: [1, 3, 5] });
+    const completed = ['2026-08-24', '2026-08-26'].map((d) => makeCompletion(d));
+    expect(calculateHabitCompletionCounts(habit, completed, '2026-08-24', '2026-08-30')).toEqual({
+      completed: 2,
+      expected: 3,
+    });
+  });
+
+  it('returns zero counts, not a divide-by-zero, when the window has no expected dates', () => {
+    const habit = makeHabit({ weekdays: [6, 7] });
+    expect(calculateHabitCompletionCounts(habit, [], '2026-08-24', '2026-08-28')).toEqual({
+      completed: 0,
+      expected: 0,
+    });
   });
 });

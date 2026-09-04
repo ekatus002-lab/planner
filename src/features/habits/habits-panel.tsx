@@ -3,13 +3,39 @@
 import { useMemo, useState } from 'react';
 import { useQuery, usePowerSync } from '@powersync/react';
 import type { CommonPowerSyncDatabase } from '@powersync/web';
-import { Plus, Repeat } from 'lucide-react';
+import { Flame, Plus, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useHabits, type HabitStats } from './use-habits';
 import { setHabitCompletion } from './habit-repository';
 import { HabitCard } from './habit-card';
 import { HabitForm } from './habit-form';
+
+// A small ring drawn from two stacked SVG circles (track + progress arc) -
+// no charting library is in this project's dependencies, and a single
+// static percentage doesn't warrant adding one.
+function CompletionRing({ percent }: { percent: number }) {
+  const radius = 20;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - Math.min(100, Math.max(0, percent)) / 100);
+
+  return (
+    <svg width="52" height="52" viewBox="0 0 48 48" className="-rotate-90" aria-hidden="true">
+      <circle cx="24" cy="24" r={radius} fill="none" strokeWidth="5" className="stroke-muted" />
+      <circle
+        cx="24"
+        cy="24"
+        r={radius}
+        fill="none"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        className="stroke-primary transition-[stroke-dashoffset]"
+      />
+    </svg>
+  );
+}
 
 type Props = {
   userId: string;
@@ -29,7 +55,7 @@ function useAreaColorById(userId: string): Record<string, string> {
 
 export function HabitsPanel({ userId, today }: Props) {
   const db = usePowerSync() as CommonPowerSyncDatabase | null;
-  const { todaysHabits } = useHabits(userId, today);
+  const { habits, todaysHabits, bestCurrentStreak, weekSummary } = useHabits(userId, today);
   const areaColorById = useAreaColorById(userId);
 
   const [isCreating, setIsCreating] = useState(false);
@@ -72,6 +98,22 @@ export function HabitsPanel({ userId, today }: Props) {
         >
           {error}
         </p>
+      )}
+
+      {habits.length > 0 && !isCreating && (
+        <Card size="sm" className="flex-row items-center gap-3 bg-accent">
+          <CardContent className="flex flex-1 items-center gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Flame className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-accent-foreground">
+                streak <span className="tabular-nums">{bestCurrentStreak}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">дней подряд</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {isCreating && (
@@ -120,6 +162,21 @@ export function HabitsPanel({ userId, today }: Props) {
           );
         })}
       </ul>
+
+      {habits.length > 0 && !isCreating && (
+        <Card size="sm">
+          <CardContent className="flex items-center gap-3">
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">Выполнено привычек</p>
+              <p className="text-2xl font-semibold tabular-nums">{weekSummary.rate}%</p>
+              <p className="text-xs text-muted-foreground">
+                {weekSummary.completed} из {weekSummary.expected} за эту неделю
+              </p>
+            </div>
+            <CompletionRing percent={weekSummary.rate} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

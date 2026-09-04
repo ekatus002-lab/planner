@@ -14,6 +14,7 @@ import {
 import {
   calculateBestStreak,
   calculateCurrentStreak,
+  calculateHabitCompletionCounts,
   calculateHabitCompletionRate,
   isoMonthRange,
   isoWeekRange,
@@ -46,11 +47,18 @@ export type HabitStats = {
   monthRate: number;
 };
 
+/** Aggregate occurrence counts across every active habit for one date range. */
+export type HabitCompletionSummary = { completed: number; expected: number; rate: number };
+
 export type UseHabitsResult = {
   /** Every active habit, with its stats computed relative to `today`. */
   habits: HabitStats[];
   /** The subset of `habits` actually scheduled on `today`. */
   todaysHabits: HabitStats[];
+  /** The longest current streak among all active habits, 0 if there are none. */
+  bestCurrentStreak: number;
+  /** Combined expected/completed occurrences across every active habit this ISO week. */
+  weekSummary: HabitCompletionSummary;
   isLoading: boolean;
 };
 
@@ -92,5 +100,23 @@ export function useHabits(userId: string, today: string): UseHabitsResult {
 
   const todaysHabits = useMemo(() => habits.filter((stat) => stat.isDueToday), [habits]);
 
-  return { habits, todaysHabits, isLoading: habitsLoading || completionsLoading };
+  const bestCurrentStreak = useMemo(
+    () => habits.reduce((max, stat) => Math.max(max, stat.currentStreak), 0),
+    [habits],
+  );
+
+  const weekSummary = useMemo((): HabitCompletionSummary => {
+    const week = isoWeekRange(today);
+    const totals = habits.reduce(
+      (acc, stat) => {
+        const counts = calculateHabitCompletionCounts(stat.habit, stat.completions, week.start, week.end);
+        return { completed: acc.completed + counts.completed, expected: acc.expected + counts.expected };
+      },
+      { completed: 0, expected: 0 },
+    );
+    const rate = totals.expected === 0 ? 0 : Math.round((totals.completed / totals.expected) * 100);
+    return { ...totals, rate };
+  }, [habits, today]);
+
+  return { habits, todaysHabits, bestCurrentStreak, weekSummary, isLoading: habitsLoading || completionsLoading };
 }

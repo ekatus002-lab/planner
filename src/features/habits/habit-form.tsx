@@ -132,25 +132,34 @@ export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
     }
   }
 
+  // Mirrors TaskForm's/GoalForm's field/button styling for visual
+  // consistency across the app's inline create/edit forms: `text-base`
+  // (16px) keeps iOS Safari from auto-zooming on focus, and `min-h-11` gives
+  // every field/button a 44px+ touch target.
+  const fieldClassName = 'mt-1 block w-full min-h-11 rounded-md border px-3 py-2 text-base';
+  const buttonClassName = 'min-h-11 rounded-md border px-4 py-2 text-sm font-medium';
+
   return (
     <form onSubmit={handleSubmit} aria-label="Привычка" className="space-y-3">
       <label className="block">
-        <span>Название</span>
+        <span className="text-sm font-medium">Название</span>
         <input
           aria-label="Название"
           value={title}
           maxLength={TITLE_MAX_LENGTH}
           onChange={(event) => setTitle(event.target.value)}
           required
+          className={fieldClassName}
         />
       </label>
 
       <label className="block">
-        <span>Сфера жизни</span>
+        <span className="text-sm font-medium">Сфера жизни</span>
         <select
           aria-label="Сфера жизни"
           value={areaId ?? ''}
           onChange={(event) => setAreaId(event.target.value)}
+          className={fieldClassName}
         >
           <option value="">Без сферы</option>
           {areas.map((area) => (
@@ -161,95 +170,120 @@ export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
         </select>
       </label>
 
-      <fieldset className="space-y-1">
-        <legend>Дни недели</legend>
-        {WEEKDAY_OPTIONS.map((option) => (
-          <label key={option.iso} className="inline-flex items-center gap-1">
-            <input
-              type="checkbox"
-              aria-label={option.label}
-              checked={weekdays.includes(option.iso)}
-              onChange={() => toggleWeekday(option.iso)}
-            />
-            {option.label}
-          </label>
-        ))}
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">Дни недели</legend>
+        <div className="flex flex-wrap gap-1">
+          {WEEKDAY_OPTIONS.map((option) => {
+            const checked = weekdays.includes(option.iso);
+            return (
+              <label
+                key={option.iso}
+                className={`flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-md border px-2 text-sm font-medium ${
+                  checked ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  aria-label={option.label}
+                  checked={checked}
+                  onChange={() => toggleWeekday(option.iso)}
+                  className="sr-only"
+                />
+                {option.label}
+              </label>
+            );
+          })}
+        </div>
       </fieldset>
 
-      <label className="block">
-        <span>Дата начала</span>
-        <input
-          type="date"
-          aria-label="Дата начала"
-          value={startDate ?? ''}
-          onChange={(event) => setStartDate(event.target.value)}
-        />
-      </label>
+      <div className="flex gap-2">
+        <label className="block min-w-0 flex-1">
+          <span className="text-sm font-medium">Дата начала</span>
+          <input
+            type="date"
+            aria-label="Дата начала"
+            value={startDate ?? ''}
+            onChange={(event) => setStartDate(event.target.value)}
+            className={fieldClassName}
+          />
+        </label>
+
+        <label className="block min-w-0 flex-1">
+          <span className="text-sm font-medium">Дата окончания</span>
+          <input
+            type="date"
+            aria-label="Дата окончания"
+            value={endDate ?? ''}
+            onChange={(event) => setEndDate(event.target.value)}
+            className={fieldClassName}
+          />
+        </label>
+      </div>
 
       <label className="block">
-        <span>Дата окончания</span>
-        <input
-          type="date"
-          aria-label="Дата окончания"
-          value={endDate ?? ''}
-          onChange={(event) => setEndDate(event.target.value)}
-        />
-      </label>
-
-      <label className="block">
-        <span>Количественная цель</span>
+        <span className="text-sm font-medium">Количественная цель</span>
         <input
           type="number"
           aria-label="Количественная цель"
           value={targetValue}
           onChange={(event) => setTargetValue(event.target.value)}
+          className={fieldClassName}
         />
       </label>
 
       <label className="block">
-        <span>Единица измерения</span>
+        <span className="text-sm font-medium">Единица измерения</span>
         <input
           aria-label="Единица измерения"
           value={targetUnit}
           onChange={(event) => setTargetUnit(event.target.value)}
+          className={fieldClassName}
         />
       </label>
 
-      <label className="inline-flex items-center gap-1">
+      <label className="flex min-h-11 items-center gap-2">
         <input
           type="checkbox"
           aria-label="Активна"
           checked={active}
           onChange={(event) => setActive(event.target.checked)}
+          className="size-4"
         />
-        Активна
+        <span className="text-sm font-medium">Активна</span>
       </label>
 
       {goalOptions.length > 0 && (
-        <fieldset className="space-y-1">
-          <legend>Цели</legend>
-          {goalOptions.map((goal) => (
-            <label key={goal.id} className="inline-flex items-center gap-1">
-              <input
-                type="checkbox"
-                aria-label={`Цель: ${goal.title}`}
-                checked={goalIds.includes(goal.id)}
-                onChange={() => toggleGoal(goal.id)}
-              />
-              {goal.title}
-            </label>
-          ))}
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">Цели</legend>
+          <div className="space-y-1">
+            {goalOptions.map((goal) => (
+              <label key={goal.id} className="flex min-h-11 items-center gap-2">
+                <input
+                  type="checkbox"
+                  aria-label={`Цель: ${goal.title}`}
+                  checked={goalIds.includes(goal.id)}
+                  onChange={() => toggleGoal(goal.id)}
+                  className="size-4"
+                />
+                <span className="text-sm">{goal.title}</span>
+              </label>
+            ))}
+          </div>
         </fieldset>
       )}
 
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <div className="flex gap-2">
-        <button type="submit" disabled={isSaving}>
+        <button type="submit" disabled={isSaving} className={buttonClassName}>
           Сохранить
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel}>
+          <button type="button" onClick={onCancel} className={buttonClassName}>
             Отмена
           </button>
         )}
