@@ -2,70 +2,62 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AuthPage from './page';
 
-const signInWithOtp = vi.fn();
-const verifyOtp = vi.fn();
+const signInWithPassword = vi.fn();
+const push = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push }),
+}));
 
 vi.mock('@/lib/supabase/client', () => ({
   createBrowserSupabaseClient: () => ({
-    auth: { signInWithOtp, verifyOtp },
+    auth: { signInWithPassword },
   }),
 }));
 
 describe('AuthPage', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_OWNER_EMAIL', 'owner@example.com');
   });
 
-  it('requests a code and advances to the code step on success', async () => {
-    signInWithOtp.mockResolvedValue({ data: {}, error: null });
+  afterEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it('never renders an email field', () => {
+    render(<AuthPage />);
+
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('PIN-код')).toBeInTheDocument();
+  });
+
+  it('signs in with the fixed owner email and the entered PIN', async () => {
+    signInWithPassword.mockResolvedValue({ data: {}, error: null });
     const user = userEvent.setup();
     render(<AuthPage />);
 
-    await user.type(screen.getByLabelText('Email'), 'me@example.com');
-    await user.click(screen.getByRole('button', { name: 'Получить код' }));
+    await user.type(screen.getByLabelText('PIN-код'), '682337');
+    await user.click(screen.getByRole('button', { name: 'Войти' }));
 
-    expect(await screen.findByLabelText('Код из письма')).toBeInTheDocument();
-    expect(signInWithOtp).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: 'me@example.com',
-        options: expect.objectContaining({ shouldCreateUser: false }),
-      }),
-    );
+    expect(signInWithPassword).toHaveBeenCalledWith({
+      email: 'owner@example.com',
+      password: '682337',
+    });
   });
 
-  it('surfaces a blocking error and stays on the email step when the request fails', async () => {
-    signInWithOtp.mockResolvedValue({
+  it('shows a blocking error for a wrong PIN', async () => {
+    signInWithPassword.mockResolvedValue({
       data: {},
-      error: { message: 'Signups not allowed for otp' },
+      error: { message: 'Invalid login credentials' },
     });
     const user = userEvent.setup();
     render(<AuthPage />);
 
-    await user.type(screen.getByLabelText('Email'), 'unknown@example.com');
-    await user.click(screen.getByRole('button', { name: 'Получить код' }));
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(/не удалось отправить код/i);
-    expect(screen.queryByLabelText('Код из письма')).not.toBeInTheDocument();
-  });
-
-  it('surfaces a blocking error when the entered code is wrong', async () => {
-    signInWithOtp.mockResolvedValue({ data: {}, error: null });
-    verifyOtp.mockResolvedValue({ data: {}, error: { message: 'Token has expired or is invalid' } });
-    const user = userEvent.setup();
-    render(<AuthPage />);
-
-    await user.type(screen.getByLabelText('Email'), 'me@example.com');
-    await user.click(screen.getByRole('button', { name: 'Получить код' }));
-    await user.type(await screen.findByLabelText('Код из письма'), '000000');
+    await user.type(screen.getByLabelText('PIN-код'), '000000');
     await user.click(screen.getByRole('button', { name: 'Войти' }));
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(/неверный или устаревший код/i);
-    expect(verifyOtp).toHaveBeenCalledWith({
-      email: 'me@example.com',
-      token: '000000',
-      type: 'email',
-    });
+    expect(alert).toHaveTextContent(/неверный pin/i);
   });
 });

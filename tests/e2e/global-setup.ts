@@ -3,24 +3,18 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-// Magic Link can't be driven end-to-end in an automated browser (it requires
-// reading a real email). Instead we provision a throwaway Supabase auth user
-// via the admin (service-role) API - exactly as a real magic-link sign-in
-// would leave a user - sign in as it to obtain a genuine session, and persist
-// that session as a Playwright storage state file that authenticated specs
-// point `test.use({ storageState })` at. This never touches production
+// The sign-in screen authenticates one fixed, pre-provisioned account by PIN
+// (a real `signInWithPassword` grant) - it has no per-run/per-user signup
+// flow to drive from a browser. For specs that need an authenticated session
+// without going through that screen (e.g. testing what an authenticated
+// visitor sees), provision a throwaway Supabase auth user via the admin
+// (service-role) API, sign in as it to obtain a genuine session, and persist
+// that session as a Playwright storage state file that those specs point
+// `test.use({ storageState })` at. This never touches production
 // route-protection code (`src/lib/supabase/proxy.ts` still runs its normal
 // `getClaims()` check); it only supplies the cookie a real sign-in would have
 // produced.
 const STORAGE_STATE_PATH = path.resolve(__dirname, '.auth/user.json');
-// Signup is disabled server-side (`supabase/config.toml`'s
-// `enable_signup = false` - this app is single-user by design). That means
-// `auth.spec.ts`'s "existing user requests a magic link" case can no longer
-// use a fresh random email - it needs the email of a real, already-created
-// user. Persisting it here (never the password/session) lets that spec reuse
-// exactly the account this file already provisions via the admin API,
-// instead of provisioning a second one.
-export const USER_META_PATH = path.resolve(__dirname, '.auth/user-meta.json');
 const APP_COOKIE_DOMAIN = 'localhost';
 
 function loadEnvLocal() {
@@ -142,7 +136,6 @@ export default async function globalSetup() {
   const cookie = buildSupabaseAuthCookie(supabaseUrl, signInData.session);
 
   mkdirSync(path.dirname(STORAGE_STATE_PATH), { recursive: true });
-  writeFileSync(USER_META_PATH, JSON.stringify({ email }, null, 2));
   writeFileSync(
     STORAGE_STATE_PATH,
     JSON.stringify(
