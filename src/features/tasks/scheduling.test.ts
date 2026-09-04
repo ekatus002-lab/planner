@@ -2,12 +2,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
 import { createTask, mapTaskRow, TASK_COLUMNS, type TaskRow } from './task-repository';
 import {
+  moveScheduledTaskById,
   moveTimedTask,
+  resizeScheduledTaskById,
   resizeTimedTask,
   scheduleAllDayTask,
   scheduleDateOnlyTask,
+  scheduleFromBacklogById,
   scheduleTimedTask,
   unscheduleTask,
+  unscheduleTaskById,
 } from './scheduling';
 import type { CreateTaskInput, Task } from './task-types';
 
@@ -210,6 +214,77 @@ describe('scheduling', () => {
       await expect(
         resizeTimedTask(db, task, '2026-08-27T09:00:00.000Z', '2026-08-27T09:00:00.000Z'),
       ).rejects.toThrow();
+    });
+  });
+
+  describe('by-id wrappers', () => {
+    it('scheduleFromBacklogById schedules a timed slot when start/end are given', async () => {
+      const task = await seedTask(db);
+
+      await scheduleFromBacklogById(db, task.id, {
+        date: '2026-08-28',
+        startAt: '2026-08-28T09:00:00.000Z',
+        endAt: '2026-08-28T10:00:00.000Z',
+      });
+
+      const saved = await getTask(db, task.id);
+      expect(saved?.startAt).toBe('2026-08-28T09:00:00.000Z');
+      expect(saved?.allDay).toBe(false);
+    });
+
+    it('scheduleFromBacklogById schedules date-only when no times are given', async () => {
+      const task = await seedTask(db);
+
+      await scheduleFromBacklogById(db, task.id, { date: '2026-08-28' });
+
+      const saved = await getTask(db, task.id);
+      expect(saved?.scheduledDate).toBe('2026-08-28');
+      expect(saved?.startAt).toBeNull();
+    });
+
+    it('scheduleFromBacklogById is a no-op for a missing task', async () => {
+      await expect(
+        scheduleFromBacklogById(db, 'missing', { date: '2026-08-28' }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('unscheduleTaskById clears scheduling fields by id', async () => {
+      const task = await seedTimedTask(db, {
+        startAt: '2026-08-27T09:00:00.000Z',
+        endAt: '2026-08-27T10:00:00.000Z',
+      });
+
+      await unscheduleTaskById(db, task.id);
+
+      expect((await getTask(db, task.id))?.scheduledDate).toBeNull();
+    });
+
+    it('moveScheduledTaskById moves a task by id, applying reschedule rules', async () => {
+      const task = await seedTimedTask(db, {
+        startAt: '2026-08-27T09:00:00.000Z',
+        endAt: '2026-08-27T10:00:00.000Z',
+        rescheduleCount: 0,
+      });
+
+      await moveScheduledTaskById(db, task.id, '2026-08-28T09:00:00.000Z', '2026-08-28T10:00:00.000Z');
+
+      const saved = await getTask(db, task.id);
+      expect(saved?.scheduledDate).toBe('2026-08-28');
+      expect(saved?.rescheduleCount).toBe(1);
+    });
+
+    it('resizeScheduledTaskById resizes a task by id without touching reschedule_count', async () => {
+      const task = await seedTimedTask(db, {
+        startAt: '2026-08-27T09:00:00.000Z',
+        endAt: '2026-08-27T10:00:00.000Z',
+        rescheduleCount: 3,
+      });
+
+      await resizeScheduledTaskById(db, task.id, '2026-08-27T09:00:00.000Z', '2026-08-27T11:00:00.000Z');
+
+      const saved = await getTask(db, task.id);
+      expect(saved?.endAt).toBe('2026-08-27T11:00:00.000Z');
+      expect(saved?.rescheduleCount).toBe(3);
     });
   });
 });

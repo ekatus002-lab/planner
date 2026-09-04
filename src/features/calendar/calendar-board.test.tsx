@@ -2,12 +2,13 @@ import type { ReactElement } from 'react';
 import { format } from 'date-fns';
 import { render as rtlRender, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
 import { PowerSyncTestProvider } from '@/test/powersync-test-provider';
 import { createTask } from '@/features/tasks/task-repository';
 import { scheduleTimedTask } from '@/features/tasks/scheduling';
 import { CalendarBoard } from './calendar-board';
+import { PlannerDndContext } from './planner-dnd-context';
 
 // A day solidly in the middle of the current month, so the seeded event
 // always falls inside the initial month view's visible range regardless of
@@ -33,7 +34,13 @@ describe('CalendarBoard', () => {
 
   function render(ui: ReactElement) {
     return rtlRender(ui, {
-      wrapper: ({ children }) => <PowerSyncTestProvider db={db}>{children}</PowerSyncTestProvider>,
+      wrapper: ({ children }) => (
+        <PowerSyncTestProvider db={db}>
+          <PlannerDndContext onScheduleFromBacklog={vi.fn()} onUnschedule={vi.fn()} onMoveScheduledTask={vi.fn()}>
+            {children}
+          </PlannerDndContext>
+        </PowerSyncTestProvider>
+      ),
     });
   }
 

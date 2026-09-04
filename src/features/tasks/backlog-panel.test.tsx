@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
 import { PowerSyncTestProvider } from '@/test/powersync-test-provider';
+import { PlannerDndContext } from '@/features/calendar/planner-dnd-context';
 import { BacklogPanel } from './backlog-panel';
 import { createTask } from './task-repository';
 
@@ -20,7 +21,13 @@ describe('BacklogPanel', () => {
 
   function render(ui: ReactElement) {
     return rtlRender(ui, {
-      wrapper: ({ children }) => <PowerSyncTestProvider db={db}>{children}</PowerSyncTestProvider>,
+      wrapper: ({ children }) => (
+        <PowerSyncTestProvider db={db}>
+          <PlannerDndContext onScheduleFromBacklog={vi.fn()} onUnschedule={vi.fn()} onMoveScheduledTask={vi.fn()}>
+            {children}
+          </PlannerDndContext>
+        </PowerSyncTestProvider>
+      ),
     });
   }
 

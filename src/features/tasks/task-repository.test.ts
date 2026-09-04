@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
-import { createTask, deleteTask, listBacklogTasks, setTaskCompleted, updateTask } from './task-repository';
+import {
+  createTask,
+  deleteTask,
+  getTaskById,
+  listBacklogTasks,
+  reorderBacklogTasks,
+  setTaskCompleted,
+  updateTask,
+} from './task-repository';
 import type { CreateTaskInput, Task } from './task-types';
 
 type TaskRow = {
@@ -169,5 +177,42 @@ describe('task-repository', () => {
     expect(backlog.map((t) => t.title)).toEqual(['B', 'A']);
     expect(backlog.every((t) => t.userId === 'user-1')).toBe(true);
     expect(backlog.some((t) => t.id === otherUser.id)).toBe(false);
+  });
+
+  it('gets a task by id, or null when it does not exist', async () => {
+    const task = await seedTask(db, { title: 'Findable' });
+
+    expect((await getTaskById(db, task.id))?.title).toBe('Findable');
+    expect(await getTaskById(db, 'does-not-exist')).toBeNull();
+  });
+
+  it('reorders backlog tasks, persisting sort_order in increments of 10, surviving reload', async () => {
+    const a = await seedTask(db, { title: 'A' });
+    const b = await seedTask(db, { title: 'B' });
+    const c = await seedTask(db, { title: 'C' });
+
+    await reorderBacklogTasks(db, [c.id, a.id, b.id]);
+
+    const reloaded = await listBacklogTasks(db, 'user-1');
+    expect(reloaded.map((t) => t.title)).toEqual(['C', 'A', 'B']);
+    expect((await getTaskById(db, c.id))?.sortOrder).toBe(10);
+    expect((await getTaskById(db, a.id))?.sortOrder).toBe(20);
+    expect((await getTaskById(db, b.id))?.sortOrder).toBe(30);
+  });
+
+  it('does not touch scheduling fields or reschedule_count when reordering', async () => {
+    const task = await seedTask(db, { title: 'Untouched' });
+    await db.execute(
+      `UPDATE tasks SET scheduled_date = ?, start_at = ?, end_at = ?, reschedule_count = ? WHERE id = ?`,
+      ['2026-09-01', '2026-09-01T09:00:00.000Z', '2026-09-01T10:00:00.000Z', 2, task.id],
+    );
+
+    await reorderBacklogTasks(db, [task.id]);
+
+    const saved = await getTaskById(db, task.id);
+    expect(saved?.scheduledDate).toBe('2026-09-01');
+    expect(saved?.startAt).toBe('2026-09-01T09:00:00.000Z');
+    expect(saved?.endAt).toBe('2026-09-01T10:00:00.000Z');
+    expect(saved?.rescheduleCount).toBe(2);
   });
 });

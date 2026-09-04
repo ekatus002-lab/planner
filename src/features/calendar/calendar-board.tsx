@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type HTMLAttributes } from 'react';
+import { useMemo, useState, type ComponentType, type HTMLAttributes } from 'react';
 import {
   Calendar as BigCalendar,
   dateFnsLocalizer,
@@ -23,6 +23,7 @@ import { tasksToCalendarEvents } from './calendar-adapter';
 import { useCalendarTasks } from './use-calendar-tasks';
 import { DateNavigation } from './date-navigation';
 import { CalendarEventItem } from './calendar-event';
+import { DraggableEventWrapper, DroppableDateCell, DroppableTimeSlot } from './calendar-drop-targets';
 import type { CalendarView, PlannerCalendarEvent } from './calendar-types';
 
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -115,7 +116,18 @@ export function CalendarBoard({ userId }: Props) {
           onNavigate={(nextDate: Date) => setDate(nextDate)}
           onSelectEvent={(event) => setEditingEvent(event)}
           messages={TOOLBAR_MESSAGES}
-          components={{ toolbar: DateNavigation, event: CalendarEventItem }}
+          components={{
+            toolbar: DateNavigation,
+            event: CalendarEventItem,
+            eventWrapper: DraggableEventWrapper,
+            dateCellWrapper: DroppableDateCell,
+            // See `TimeSlotWrapperProps`'s own comment in
+            // `calendar-drop-targets.tsx` for why this cast is needed:
+            // `@types/react-big-calendar` types `timeSlotWrapper` as a bare
+            // `React.ComponentType` even though it always receives
+            // `{ value, resource, children }` at runtime.
+            timeSlotWrapper: DroppableTimeSlot as unknown as ComponentType,
+          }}
           eventPropGetter={(event: PlannerCalendarEvent) => ({
             style: {
               backgroundColor: event.areaColor,

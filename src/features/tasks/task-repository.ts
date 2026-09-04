@@ -197,3 +197,33 @@ export async function setTaskCompleted(
 export async function deleteTask(db: CommonPowerSyncDatabase, id: string): Promise<void> {
   await db.execute('DELETE FROM tasks WHERE id = ?', [id]);
 }
+
+// Single-row lookup by id - used by drag/drop's by-id scheduling wrappers
+// (`scheduling.ts`) and by the calendar editor, which each only have a task
+// *id* available (a dnd-kit drag payload, a clicked event's `taskId`) and
+// need the full row to run the reschedule-count diffing logic.
+export async function getTaskById(db: CommonPowerSyncDatabase, id: string): Promise<Task | null> {
+  const row = await db.getOptional<TaskRow>(`SELECT ${TASK_COLUMNS} FROM tasks WHERE id = ?`, [id]);
+  return row ? mapTaskRow(row) : null;
+}
+
+// Persists a new relative order for the given backlog task ids, assigning
+// sequential `sort_order` values in increments of 10 (mirrors
+// `reorderAreas` in `area-repository.ts`). Runs as a single
+// `writeTransaction` so a mid-loop failure rolls back every UPDATE instead
+// of leaving `sort_order` half-renumbered. Deliberately touches only
+// `sort_order`/`updated_at` - never `scheduled_date`/`start_at`/`end_at`/
+// `reschedule_count` - so a pure reorder drag can never look like a
+// reschedule.
+export async function reorderBacklogTasks(db: CommonPowerSyncDatabase, orderedTaskIds: string[]): Promise<void> {
+  const now = new Date().toISOString();
+  await db.writeTransaction(async (tx) => {
+    for (let index = 0; index < orderedTaskIds.length; index += 1) {
+      await tx.execute('UPDATE tasks SET sort_order = ?, updated_at = ? WHERE id = ?', [
+        (index + 1) * 10,
+        now,
+        orderedTaskIds[index],
+      ]);
+    }
+  });
+}

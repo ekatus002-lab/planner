@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import type { CommonPowerSyncDatabase } from '@powersync/web';
+import { getTaskById } from './task-repository';
 import type { Task } from './task-types';
 
 // Domain-level scheduling operations for the unified `tasks` model (see the
@@ -120,4 +121,53 @@ export async function unscheduleTask(db: CommonPowerSyncDatabase, task: Task): P
      WHERE id = ?`,
     [now, task.id],
   );
+}
+
+// By-id wrappers for drag/drop callbacks (`planner-dnd-context.tsx`), which
+// only carry a `taskId` string in their drag payload - never the live
+// `Task` object the functions above require for their reschedule-count
+// diffing. Each looks the row up once, then delegates. A missing task
+// (deleted mid-drag) is treated as a silent no-op rather than an error.
+
+export async function scheduleFromBacklogById(
+  db: CommonPowerSyncDatabase,
+  taskId: string,
+  slot: { date: string; startAt?: string; endAt?: string },
+): Promise<void> {
+  const task = await getTaskById(db, taskId);
+  if (!task) return;
+
+  if (slot.startAt && slot.endAt) {
+    await scheduleTimedTask(db, task, slot.startAt, slot.endAt);
+  } else {
+    await scheduleDateOnlyTask(db, task, slot.date);
+  }
+}
+
+export async function unscheduleTaskById(db: CommonPowerSyncDatabase, taskId: string): Promise<void> {
+  const task = await getTaskById(db, taskId);
+  if (!task) return;
+  await unscheduleTask(db, task);
+}
+
+export async function moveScheduledTaskById(
+  db: CommonPowerSyncDatabase,
+  taskId: string,
+  startAt: string,
+  endAt: string,
+): Promise<void> {
+  const task = await getTaskById(db, taskId);
+  if (!task) return;
+  await moveTimedTask(db, task, startAt, endAt);
+}
+
+export async function resizeScheduledTaskById(
+  db: CommonPowerSyncDatabase,
+  taskId: string,
+  startAt: string,
+  endAt: string,
+): Promise<void> {
+  const task = await getTaskById(db, taskId);
+  if (!task) return;
+  await resizeTimedTask(db, task, startAt, endAt);
 }
