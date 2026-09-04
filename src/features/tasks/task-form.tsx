@@ -133,7 +133,7 @@ export function TaskForm({ userId, task, onSaved, onCancel, showScheduling = fal
   const buttonClassName = 'min-h-11 rounded-md border px-4 py-2 text-sm font-medium';
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Задача" className="space-y-3">
+    <form onSubmit={handleSubmit} aria-label="Задача" className="@container space-y-3">
       <label className="block">
         <span className="text-sm font-medium">Название</span>
         <input
@@ -212,8 +212,16 @@ export function TaskForm({ userId, task, onSaved, onCancel, showScheduling = fal
           </label>
 
           {!allDay && (
-            <div className="flex gap-2">
-              <label className="block min-w-0 flex-1">
+            // A native <input type="time"> renders wider in some browsers/
+            // locales (e.g. a 12-hour AM/PM format) than this component was
+            // tested against - a fixed viewport breakpoint can't account for
+            // that, and this form also renders inside a ~320px desktop
+            // sidebar column, narrower than most phones. A container query
+            // responds to *this form's own rendered width* instead: stacked
+            // by default, side by side only once there is unambiguously
+            // enough room for two comfortable fields.
+            <div className="flex flex-col gap-2 @min-[500px]:flex-row">
+              <label className="block min-w-0 @min-[500px]:flex-1">
                 <span className="text-sm font-medium">Начало</span>
                 <input
                   type="time"
@@ -223,7 +231,7 @@ export function TaskForm({ userId, task, onSaved, onCancel, showScheduling = fal
                   className={fieldClassName}
                 />
               </label>
-              <label className="block min-w-0 flex-1">
+              <label className="block min-w-0 @min-[500px]:flex-1">
                 <span className="text-sm font-medium">Конец</span>
                 <input
                   type="time"

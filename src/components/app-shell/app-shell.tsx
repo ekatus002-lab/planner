@@ -113,14 +113,14 @@ export function AppShell({ userId }: Props) {
           }}
         >
           <div className="grid flex-1 overflow-hidden md:grid-cols-[320px_1fr_280px]">
-            <section className={`${sectionClassName('tasks')} space-y-6 overflow-y-auto border-r p-4`}>
+            <section className={`${sectionClassName('tasks')} min-h-0 min-w-0 space-y-6 overflow-y-auto border-r p-4`}>
               <BacklogPanel userId={userId} />
               <GoalsPanel userId={userId} today={today} />
             </section>
-            <section className={`${sectionClassName('calendar')} min-w-0 overflow-hidden p-4`}>
+            <section className={`${sectionClassName('calendar')} min-h-0 min-w-0 overflow-hidden p-4`}>
               <CalendarBoard userId={userId} />
             </section>
-            <section className={`${sectionClassName('habits')} overflow-y-auto border-l p-4`}>
+            <section className={`${sectionClassName('habits')} min-h-0 min-w-0 overflow-y-auto border-l p-4`}>
               <HabitsPanel userId={userId} today={today} />
             </section>
           </div>

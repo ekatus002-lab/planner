@@ -93,7 +93,7 @@ export function GoalForm({ userId, goal, onSaved, onCancel }: Props) {
     <form
       onSubmit={handleSubmit}
       aria-label="Цель"
-      className="space-y-3 rounded-xl border bg-card p-3 ring-1 ring-foreground/10"
+      className="@container space-y-3 rounded-xl border bg-card p-3 ring-1 ring-foreground/10"
     >
       <label className="block">
         <span className="text-sm font-medium">Название</span>
@@ -134,8 +134,15 @@ export function GoalForm({ userId, goal, onSaved, onCancel }: Props) {
         </select>
       </label>
 
-      <div className="flex gap-2">
-        <label className="block min-w-0 flex-1">
+      {/* A native <input type="date"> can render wider in some browsers/
+          locales than this was tested against, and this form also renders
+          inside a ~320px desktop sidebar column, narrower than most phones -
+          a container query (see task-form.tsx's own scheduling row for the
+          same reasoning) responds to this form's own rendered width instead
+          of guessing a viewport breakpoint: stacked by default, side by side
+          only once there's unambiguously enough room. */}
+      <div className="flex flex-col gap-2 @min-[500px]:flex-row">
+        <label className="block min-w-0 @min-[500px]:flex-1">
           <span className="text-sm font-medium">Начало</span>
           <input
             type="date"
@@ -146,7 +153,7 @@ export function GoalForm({ userId, goal, onSaved, onCancel }: Props) {
           />
         </label>
 
-        <label className="block min-w-0 flex-1">
+        <label className="block min-w-0 @min-[500px]:flex-1">
           <span className="text-sm font-medium">Окончание</span>
           <input
             type="date"

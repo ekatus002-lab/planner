@@ -128,3 +128,28 @@
     @apply font-sans;
   }
 }
+
+/* `CalendarBoard` applies `.rbc-week-scroll` to react-big-calendar's week
+ * view below `md`: each day column gets a comfortable minimum width instead
+ * of shrinking to fit, `.rbc-time-view` (not the calendar's own container,
+ * and not the Month/Week/Day toolbar above it, which is a plain non-scrolling
+ * sibling of `.rbc-time-view` inside react-big-calendar's own root) becomes
+ * the horizontally-scrolling element, and the time-of-day gutter is pinned
+ * to the scroll edge so it's never scrolled out of view. */
+@media (max-width: 767px) {
+  .rbc-week-scroll .rbc-time-view {
+    overflow-x: auto;
+  }
+  .rbc-week-scroll .rbc-header,
+  .rbc-week-scroll .rbc-day-slot,
+  .rbc-week-scroll .rbc-allday-cell {
+    min-width: 88px;
+  }
+  .rbc-week-scroll .rbc-time-gutter,
+  .rbc-week-scroll .rbc-time-header-gutter {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: var(--background);
+  }
+}
