@@ -2,7 +2,7 @@ import { UpdateType } from '@powersync/web';
 import type { CommonPowerSyncDatabase, CrudTransaction } from '@powersync/web';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
-import { isPermanentError, PlannerBackendConnector } from './backend-connector';
+import { decodeJsonTextColumns, isPermanentError, PlannerBackendConnector } from './backend-connector';
 
 describe('isPermanentError', () => {
   it.each(['23505', '23503', '23514', '42501'])(
@@ -24,6 +24,31 @@ describe('isPermanentError', () => {
     expect(isPermanentError(null)).toBe(false);
     expect(isPermanentError(undefined)).toBe(false);
     expect(isPermanentError('boom')).toBe(false);
+  });
+});
+
+describe('decodeJsonTextColumns', () => {
+  it('parses a known JSON-text column back into its real array value', () => {
+    expect(decodeJsonTextColumns('habits', { title: 'x', weekdays: '[1,2,3]' })).toEqual({
+      title: 'x',
+      weekdays: [1, 2, 3],
+    });
+  });
+
+  it('parses field_versions on the tasks table', () => {
+    expect(decodeJsonTextColumns('tasks', { field_versions: '{"title":2}' })).toEqual({
+      field_versions: { title: 2 },
+    });
+  });
+
+  it('leaves other tables/columns untouched', () => {
+    const data = { name: 'x', color: '#fff' };
+    expect(decodeJsonTextColumns('areas', data)).toEqual(data);
+  });
+
+  it('leaves a non-string value (e.g. already decoded, or absent) alone', () => {
+    expect(decodeJsonTextColumns('habits', { weekdays: [1, 2, 3] })).toEqual({ weekdays: [1, 2, 3] });
+    expect(decodeJsonTextColumns('habits', {})).toEqual({});
   });
 });
 
@@ -90,6 +115,31 @@ describe('PlannerBackendConnector.uploadData', () => {
       new PlannerBackendConnector(supabase).uploadData(fakeDatabase(transaction)),
     ).rejects.toMatchObject({ message: 'network error' });
     expect(transaction.complete).not.toHaveBeenCalled();
+  });
+
+  it('decodes a JSON-text column before upserting, so Supabase gets a real array not a JSON string', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const supabase = { from: vi.fn(() => ({ upsert })) } as unknown as SupabaseClient;
+    const transaction = fakeTransaction([
+      { op: UpdateType.PUT, table: 'habits', id: 'h1', opData: { title: 'x', weekdays: '[1,3,5]' } },
+    ] as unknown as CrudTransaction['crud']);
+
+    await new PlannerBackendConnector(supabase).uploadData(fakeDatabase(transaction));
+
+    expect(upsert).toHaveBeenCalledWith({ title: 'x', weekdays: [1, 3, 5], id: 'h1' });
+  });
+
+  it('decodes a JSON-text column before a PATCH update too', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({ eq }));
+    const supabase = { from: vi.fn(() => ({ update })) } as unknown as SupabaseClient;
+    const transaction = fakeTransaction([
+      { op: UpdateType.PATCH, table: 'habits', id: 'h1', opData: { weekdays: '[6,7]' } },
+    ] as unknown as CrudTransaction['crud']);
+
+    await new PlannerBackendConnector(supabase).uploadData(fakeDatabase(transaction));
+
+    expect(update).toHaveBeenCalledWith({ weekdays: [6, 7] });
   });
 
   it('does nothing when there is no queued transaction', async () => {

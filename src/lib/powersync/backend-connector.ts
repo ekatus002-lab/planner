@@ -36,6 +36,47 @@ export function isPermanentError(error: unknown): boolean {
   return typeof code === 'string' && PERMANENT_POSTGRES_ERROR_CODES.has(code);
 }
 
+// Columns that are Postgres `jsonb` server-side but have no native array/
+// object column type in local SQLite, so the repositories that write them
+// (`habit-repository.ts`'s `weekdays`, `task-repository.ts`'s
+// `field_versions`) store a JSON-encoded *string* locally and `JSON.parse`
+// it back on read (see each repository's own `mapXRow`). `op.opData` here is
+// that same local string value - upserting it as-is would hand PostgREST a
+// JSON string ("[1,2,3]"), which a `jsonb` column happily accepts *as a
+// scalar string value* rather than the array/object it actually represents.
+// The download side then reads that back as a jsonb string, and one more
+// local `JSON.parse` unwraps only the outer quoting, leaving the inner
+// value still string-encoded - so every upload/download round trip adds
+// another layer of encoding. Decoding here, once, before the row ever
+// reaches Supabase keeps the local text representation and the wire
+// representation each JSON-encoded exactly once.
+const JSON_TEXT_COLUMNS: Record<string, string[]> = {
+  habits: ['weekdays'],
+  tasks: ['field_versions'],
+};
+
+/**
+ * Returns `data` with any of `table`'s known JSON-text columns parsed back
+ * into real JSON values, so Supabase's PostgREST receives an actual
+ * array/object for a `jsonb` column instead of a JSON-encoded string.
+ * Exported for unit testing; leaves `data` untouched for tables/columns not
+ * listed in `JSON_TEXT_COLUMNS`, and leaves non-string values (e.g. already
+ * `undefined`, from a PATCH that doesn't touch that column) alone.
+ */
+export function decodeJsonTextColumns(table: string, data: Record<string, unknown>): Record<string, unknown> {
+  const columns = JSON_TEXT_COLUMNS[table];
+  if (!columns) return data;
+
+  const decoded = { ...data };
+  for (const column of columns) {
+    const value = decoded[column];
+    if (typeof value === 'string') {
+      decoded[column] = JSON.parse(value);
+    }
+  }
+  return decoded;
+}
+
 /**
  * Bridges the local PowerSync SQLite database with the Supabase Postgres
  * backend: supplies sync credentials from the current Supabase session, and
@@ -80,13 +121,13 @@ export class PlannerBackendConnector implements PowerSyncBackendConnector {
       try {
         switch (op.op) {
           case UpdateType.PUT: {
-            const record = { ...op.opData, id: op.id };
+            const record = { ...decodeJsonTextColumns(op.table, op.opData ?? {}), id: op.id };
             const { error } = await table.upsert(record);
             if (error) throw error;
             break;
           }
           case UpdateType.PATCH: {
-            const { error } = await table.update(op.opData ?? {}).eq('id', op.id);
+            const { error } = await table.update(decodeJsonTextColumns(op.table, op.opData ?? {})).eq('id', op.id);
             if (error) throw error;
             break;
           }
