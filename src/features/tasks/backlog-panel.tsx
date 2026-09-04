@@ -11,6 +11,12 @@ import {
   type BacklogDropPayload,
   type BacklogTaskDragPayload,
 } from '@/features/calendar/planner-dnd-context';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useBacklogTasks } from './use-backlog-tasks';
 import { deleteTask, reorderBacklogTasks, setTaskCompleted } from './task-repository';
 import { TaskForm } from './task-form';
@@ -39,7 +45,6 @@ export function BacklogPanel({ userId }: Props) {
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const taskIds = useMemo(() => tasks.map((task) => task.id), [tasks]);
@@ -98,7 +103,6 @@ export function BacklogPanel({ userId }: Props) {
       setError('Не удалось удалить задачу');
       return;
     }
-    setOpenMenuTaskId(null);
     try {
       await deleteTask(db, task.id);
       setError(null);
@@ -126,7 +130,11 @@ export function BacklogPanel({ userId }: Props) {
       )}
 
       {!isCreating && (
-        <button type="button" onClick={() => setIsCreating(true)}>
+        <button
+          type="button"
+          onClick={() => setIsCreating(true)}
+          className="flex min-h-11 w-full items-center gap-1 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+        >
           <span aria-hidden="true">+ </span>
           Новая задача
         </button>
@@ -160,54 +168,45 @@ export function BacklogPanel({ userId }: Props) {
 
             return (
               <BacklogTaskRow key={task.id} taskId={task.id} title={task.title}>
-                <input
-                  type="checkbox"
-                  aria-label={`Выполнено: ${task.title}`}
-                  checked={task.status === 'completed'}
-                  onChange={() => handleToggleCompleted(task)}
-                />
+                <label className="flex h-11 w-11 shrink-0 items-center justify-center">
+                  <input
+                    type="checkbox"
+                    aria-label={`Выполнено: ${task.title}`}
+                    checked={task.status === 'completed'}
+                    onChange={() => handleToggleCompleted(task)}
+                    className="size-5"
+                  />
+                </label>
                 <button
                   type="button"
                   onClick={() => setEditingTaskId(task.id)}
-                  className="flex-1 text-left"
+                  className="min-h-11 flex-1 py-2 text-left"
                 >
                   {task.title}
                 </button>
                 {color && (
                   <span
                     aria-hidden="true"
-                    className="inline-block h-3 w-3 rounded-full"
+                    className="inline-block h-3 w-3 shrink-0 rounded-full"
                     style={{ backgroundColor: color }}
                   />
                 )}
-                <div className="relative">
-                  <button
-                    type="button"
+                <DropdownMenu>
+                  <DropdownMenuTrigger
                     aria-label={`Меню: ${task.title}`}
-                    aria-haspopup="menu"
-                    aria-expanded={openMenuTaskId === task.id}
-                    onClick={() => setOpenMenuTaskId((current) => (current === task.id ? null : task.id))}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center text-lg"
                   >
                     ⋮
-                  </button>
-                  {openMenuTaskId === task.id && (
-                    <div role="menu" aria-label={`Действия: ${task.title}`}>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setOpenMenuTaskId(null);
-                          setEditingTaskId(task.id);
-                        }}
-                      >
-                        Редактировать
-                      </button>
-                      <button type="button" role="menuitem" onClick={() => handleDelete(task)}>
-                        Удалить
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" aria-label={`Действия: ${task.title}`}>
+                    <DropdownMenuItem className="min-h-11" onClick={() => setEditingTaskId(task.id)}>
+                      Редактировать
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="min-h-11" variant="destructive" onClick={() => handleDelete(task)}>
+                      Удалить
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </BacklogTaskRow>
             );
           })}
