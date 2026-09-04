@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { randomUUID } from 'node:crypto';
-import { render as rtlRender, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render as rtlRender, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeTestDb, createTestDb, type TestDatabase } from '@/test/sqlite-test-db';
@@ -89,6 +89,35 @@ describe('AreaSettings', () => {
       const areas = await listAreas(db, USER_ID);
       expect(areas.find((area) => area.name === 'Творчество')?.color).toBe('#112233');
     });
+  });
+
+  it('commits the color wheel only when the picker releases, not on every drag-tick change', async () => {
+    const user = userEvent.setup();
+    render(<AreaSettings userId={USER_ID} />);
+    await createTvorchestvo(user);
+
+    const executeSpy = vi.spyOn(db, 'execute');
+    const callsBeforeDrag = executeSpy.mock.calls.length;
+
+    const colorInput = screen.getByLabelText('Цвет: Творчество');
+    // Simulates the browser firing an `input`/`change` event per drag tick
+    // while the native color wheel is open, before the user releases it.
+    fireEvent.change(colorInput, { target: { value: '#111111' } });
+    fireEvent.change(colorInput, { target: { value: '#222222' } });
+    fireEvent.change(colorInput, { target: { value: '#333333' } });
+
+    expect(executeSpy).toHaveBeenCalledTimes(callsBeforeDrag);
+
+    fireEvent.blur(colorInput);
+
+    await waitFor(async () => {
+      const areas = await listAreas(db, USER_ID);
+      expect(areas.find((area) => area.name === 'Творчество')?.color).toBe('#333333');
+    });
+    // Exactly one write for the whole drag, not one per tick.
+    expect(executeSpy).toHaveBeenCalledTimes(callsBeforeDrag + 1);
+
+    executeSpy.mockRestore();
   });
 
   it('moves a life area above another', async () => {
