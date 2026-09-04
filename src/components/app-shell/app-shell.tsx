@@ -54,12 +54,17 @@ const MOBILE_TABS: ReadonlyArray<{ id: MobileTab; label: string; icon: Component
 // is only ever one live `BacklogPanel`/`CalendarBoard`/`HabitsPanel` instance.
 //
 // The tab bar itself is a normal (non-`position:fixed`) flex child pinned to
-// the bottom of the `h-screen` column, with `shrink-0` so the content grid
+// the bottom of the `h-dvh` column, with `shrink-0` so the content grid
 // above it (`flex-1 overflow-hidden`, each section scrolling internally)
-// never grows underneath it. This deliberately avoids `position:fixed`,
-// which on iOS Safari fights the dynamic address-bar/toolbar's effect on
-// viewport height; being a real flow participant means it's never covered
-// by content and never needs bottom padding on the sections to compensate.
+// never grows underneath it. `h-dvh` (dynamic viewport height, not
+// `h-screen`/`100vh`) keeps this column matched to the *actual* visible
+// viewport as mobile browser chrome (URL bar/toolbar) shows or hides -
+// `100vh` is pinned to the viewport's maximum size, which used to leave the
+// tab bar's true bottom below the fold, reachable only by scrolling the
+// whole page. This deliberately avoids `position:fixed`, which on iOS
+// Safari fights the dynamic address-bar/toolbar's effect on viewport height;
+// being a real flow participant means it's never covered by content and
+// never needs bottom padding on the sections to compensate.
 export function AppShell({ userId }: Props) {
   const [isAreaSettingsOpen, setIsAreaSettingsOpen] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('tasks');
@@ -76,7 +81,7 @@ export function AppShell({ userId }: Props) {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-dvh flex-col bg-background">
       <header className="flex items-center justify-between gap-2 border-b p-3 sm:p-4">
         <h1 className="truncate text-base font-semibold sm:text-lg">Мой планер</h1>
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">

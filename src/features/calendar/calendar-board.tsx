@@ -49,6 +49,15 @@ const TOOLBAR_MESSAGES = {
   day: 'Day',
 };
 
+// Two-letter Russian weekday abbreviations (пн, вт, ...) in place of
+// react-big-calendar's default 3-letter ones ('ccc'/'eee' -> "cccccc"/"eeeeee",
+// date-fns' "short" weekday width) for the month grid's header row and the
+// week/day view's per-column day headers.
+const CALENDAR_FORMATS = {
+  weekdayFormat: 'cccccc',
+  dayFormat: 'dd eeeeee',
+};
+
 // The watched task range padded to full display weeks, so tasks rendered in
 // a month view's leading/trailing days from adjacent months are still
 // fetched. Always computed in the browser's local timezone, matching
@@ -122,6 +131,7 @@ export function CalendarBoard({ userId }: Props) {
               setSelectedDate(event.start);
             }}
             messages={TOOLBAR_MESSAGES}
+            formats={CALENDAR_FORMATS}
             components={{
               toolbar: DateNavigation,
               event: CalendarEventItem,

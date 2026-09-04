@@ -1,4 +1,5 @@
 import type { ToolbarProps, View } from 'react-big-calendar';
+import { Button } from '@/components/ui/button';
 import type { PlannerCalendarEvent } from './calendar-types';
 
 // react-big-calendar's default toolbar renders icon-only prev/next buttons
@@ -18,22 +19,30 @@ export function DateNavigation({ view, views, label, onNavigate, onView }: Toolb
   return (
     <div className="mb-2 flex flex-wrap items-center justify-between gap-2" role="toolbar" aria-label="Навигация по календарю">
       <div className="flex items-center gap-1">
-        <button type="button" aria-label="Назад" onClick={() => onNavigate('PREV')}>
+        <Button type="button" variant="outline" size="icon-sm" aria-label="Назад" onClick={() => onNavigate('PREV')}>
           {'←'}
-        </button>
-        <button type="button" onClick={() => onNavigate('TODAY')}>
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => onNavigate('TODAY')}>
           Today
-        </button>
-        <button type="button" aria-label="Вперёд" onClick={() => onNavigate('NEXT')}>
+        </Button>
+        <Button type="button" variant="outline" size="icon-sm" aria-label="Вперёд" onClick={() => onNavigate('NEXT')}>
           {'→'}
-        </button>
+        </Button>
       </div>
       <span className="font-medium">{label}</span>
-      <div className="flex items-center gap-1">
+      <div className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted p-0.5">
         {viewList.map((v) => (
-          <button key={v} type="button" aria-pressed={view === v} onClick={() => onView(v)}>
+          <Button
+            key={v}
+            type="button"
+            variant={view === v ? 'default' : 'ghost'}
+            size="sm"
+            aria-pressed={view === v}
+            className="rounded-md"
+            onClick={() => onView(v)}
+          >
             {VIEW_LABELS[v] ?? v}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

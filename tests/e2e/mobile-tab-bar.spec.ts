@@ -26,19 +26,19 @@ test.describe('mobile app shell', () => {
 
     // Задачи (Backlog) is the default tab.
     await expect(page.getByRole('heading', { name: 'Backlog' })).toBeVisible();
-    await expect(page.getByText('Календарь появится на следующем этапе')).toBeHidden();
-    await expect(page.getByText('Привычки появятся позже')).toBeHidden();
+    await expect(page.getByRole('toolbar', { name: 'Навигация по календарю' })).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Привычки' })).toBeHidden();
 
     await page.getByRole('button', { name: 'Календарь' }).click();
 
-    await expect(page.getByText('Календарь появится на следующем этапе')).toBeVisible();
+    await expect(page.getByRole('toolbar', { name: 'Навигация по календарю' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Backlog' })).toBeHidden();
-    await expect(page.getByText('Привычки появятся позже')).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Привычки' })).toBeHidden();
 
     await page.getByRole('button', { name: 'Привычки' }).click();
 
-    await expect(page.getByText('Привычки появятся позже')).toBeVisible();
-    await expect(page.getByText('Календарь появится на следующем этапе')).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Привычки' })).toBeVisible();
+    await expect(page.getByRole('toolbar', { name: 'Навигация по календарю' })).toBeHidden();
     await expect(page.getByRole('heading', { name: 'Backlog' })).toBeHidden();
 
     await page.getByRole('button', { name: 'Задачи' }).click();
@@ -75,7 +75,7 @@ test.describe('desktop app shell', () => {
 
     await expect(page.getByRole('navigation', { name: 'Основная навигация' })).not.toBeAttached();
     await expect(page.getByRole('heading', { name: 'Backlog' })).toBeVisible();
-    await expect(page.getByText('Календарь появится на следующем этапе')).toBeVisible();
-    await expect(page.getByText('Привычки появятся позже')).toBeVisible();
+    await expect(page.getByRole('toolbar', { name: 'Навигация по календарю' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Привычки' })).toBeVisible();
   });
 });
