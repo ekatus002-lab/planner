@@ -3,6 +3,9 @@
 import { useMemo, useState } from 'react';
 import { useQuery, usePowerSync } from '@powersync/react';
 import type { CommonPowerSyncDatabase } from '@powersync/web';
+import { Plus, Repeat } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { useHabits, type HabitStats } from './use-habits';
 import { setHabitCompletion } from './habit-repository';
 import { HabitCard } from './habit-card';
@@ -47,37 +50,59 @@ export function HabitsPanel({ userId, today }: Props) {
   }
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-base font-semibold">Привычки</h2>
+    <div className="flex h-full flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-base font-semibold">
+          <Repeat className="size-4 text-muted-foreground" aria-hidden="true" />
+          Привычки
+        </h2>
 
-      {error && <p role="alert">{error}</p>}
+        {!isCreating && (
+          <Button type="button" size="sm" variant="outline" onClick={() => setIsCreating(true)}>
+            <Plus aria-hidden="true" />
+            Новая привычка
+          </Button>
+        )}
+      </div>
 
-      {!isCreating && (
-        <button type="button" onClick={() => setIsCreating(true)}>
-          <span aria-hidden="true">+ </span>
-          Новая привычка
-        </button>
+      {error && (
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {error}
+        </p>
       )}
 
       {isCreating && (
-        <HabitForm userId={userId} onSaved={() => setIsCreating(false)} onCancel={() => setIsCreating(false)} />
+        <Card size="sm">
+          <CardContent>
+            <HabitForm userId={userId} onSaved={() => setIsCreating(false)} onCancel={() => setIsCreating(false)} />
+          </CardContent>
+        </Card>
       )}
 
       {todaysHabits.length === 0 && !isCreating && (
-        <p className="text-muted-foreground">На сегодня привычек не запланировано</p>
+        <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+          На сегодня привычек не запланировано
+        </p>
       )}
 
-      <ul className="space-y-1">
+      <ul className="space-y-2">
         {todaysHabits.map((stat) => {
           if (editingHabitId === stat.habit.id) {
             return (
               <li key={stat.habit.id}>
-                <HabitForm
-                  userId={userId}
-                  habit={stat.habit}
-                  onSaved={() => setEditingHabitId(null)}
-                  onCancel={() => setEditingHabitId(null)}
-                />
+                <Card size="sm">
+                  <CardContent>
+                    <HabitForm
+                      userId={userId}
+                      habit={stat.habit}
+                      onSaved={() => setEditingHabitId(null)}
+                      onCancel={() => setEditingHabitId(null)}
+                    />
+                  </CardContent>
+                </Card>
               </li>
             );
           }

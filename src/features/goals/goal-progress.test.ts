@@ -137,6 +137,48 @@ describe('calculateGoalProgress', () => {
     expect(result.displayed).toBe(100);
   });
 
+  it('returns a null habitRate when the goal has no start/end dates, even with linked habits', () => {
+    const result = calculateGoalProgress(
+      baseInput({
+        mode: 'automatic',
+        startDate: null,
+        endDate: null,
+        habits: [{ habit: dailyHabit(), completions: completions(3, 10) }],
+      }),
+    );
+    expect(result.habitRate).toBeNull();
+    expect(result.automatic).toBe(0);
+  });
+
+  it('still reflects task-based progress when the goal has no dates and both tasks and habits are linked', () => {
+    const result = calculateGoalProgress(
+      baseInput({
+        mode: 'automatic',
+        startDate: null,
+        endDate: null,
+        tasks: [completedTask(), openTask()],
+        habits: [{ habit: dailyHabit(), completions: completions(3, 10) }],
+      }),
+    );
+    expect(result.taskRate).toBe(50);
+    expect(result.habitRate).toBeNull();
+    expect(result.automatic).toBe(50);
+    expect(result.displayed).toBe(50);
+  });
+
+  it('manual mode is unaffected by missing dates', () => {
+    const result = calculateGoalProgress(
+      baseInput({
+        mode: 'manual',
+        startDate: null,
+        endDate: null,
+        manualProgress: 42,
+        habits: [{ habit: dailyHabit(), completions: completions(3, 10) }],
+      }),
+    );
+    expect(result.displayed).toBe(42);
+  });
+
   it('caps the habit window at min(today, end_date)', () => {
     // Goal ends 08-10 but "today" is only 08-05: expected occurrences must
     // stop at 08-05 (5 days), not run through the full goal period.

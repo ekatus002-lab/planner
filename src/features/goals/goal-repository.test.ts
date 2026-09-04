@@ -61,6 +61,46 @@ describe('goal-repository', () => {
     ).rejects.toThrow('Goal end date must not be before its start date');
   });
 
+  it('creates an open-ended goal with no start or end date at all', async () => {
+    const goal = await createGoal(db, { userId: 'user-1', title: 'Someday' });
+
+    expect(goal.startDate).toBeNull();
+    expect(goal.endDate).toBeNull();
+
+    const [stored] = await listGoals(db, 'user-1');
+    expect(stored.startDate).toBeNull();
+    expect(stored.endDate).toBeNull();
+  });
+
+  it('creates a goal with only a start date set', async () => {
+    const goal = await createGoal(db, {
+      userId: 'user-1',
+      title: 'Only a start',
+      startDate: '2026-08-01',
+    });
+
+    expect(goal.startDate).toBe('2026-08-01');
+    expect(goal.endDate).toBeNull();
+  });
+
+  it('creates a goal with only an end date set', async () => {
+    const goal = await createGoal(db, {
+      userId: 'user-1',
+      title: 'Only an end',
+      endDate: '2026-12-31',
+    });
+
+    expect(goal.startDate).toBeNull();
+    expect(goal.endDate).toBe('2026-12-31');
+  });
+
+  it('does not reject a missing date against a present one - only compares when both are set', async () => {
+    await expect(createGoal(db, { userId: 'user-1', title: 'Start only', startDate: '2026-08-10' })).resolves
+      .toBeTruthy();
+    await expect(createGoal(db, { userId: 'user-1', title: 'End only', endDate: '2026-01-01' })).resolves
+      .toBeTruthy();
+  });
+
   it('clamps manual_progress and manual_adjustment to their valid ranges on create', async () => {
     const goal = await seedGoal({ manualProgress: 150, manualAdjustment: -500 });
     expect(goal.manualProgress).toBe(100);
@@ -76,6 +116,20 @@ describe('goal-repository', () => {
     expect(updated.title).toBe('English C1');
     expect(updated.progressMode).toBe('manual');
     expect(updated.manualProgress).toBe(40);
+  });
+
+  it('clears a previously-set date when patched with null, and leaves it alone when the key is absent', async () => {
+    const goal = await seedGoal();
+
+    await updateGoal(db, goal.id, { startDate: null });
+    let [updated] = await listGoals(db, 'user-1');
+    expect(updated.startDate).toBeNull();
+    expect(updated.endDate).toBe('2026-12-31'); // untouched: key absent from the patch
+
+    await updateGoal(db, goal.id, { endDate: null });
+    [updated] = await listGoals(db, 'user-1');
+    expect(updated.startDate).toBeNull();
+    expect(updated.endDate).toBeNull();
   });
 
   it('lists goals for the given user only', async () => {

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@powersync/react';
+import { Plus } from 'lucide-react';
 import { useGoals } from './use-goals';
 import { GoalCard } from './goal-card';
 import { GoalForm } from './goal-form';
@@ -37,14 +38,24 @@ export function GoalsPanel({ userId, today }: Props) {
       <h2 className="text-base font-semibold">Цели</h2>
 
       {!isCreating && (
-        <button type="button" onClick={() => setIsCreating(true)}>
-          <span aria-hidden="true">+ </span>
+        <button
+          type="button"
+          onClick={() => setIsCreating(true)}
+          className="flex min-h-11 w-full items-center gap-1 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+        >
+          <Plus aria-hidden="true" className="size-4" />
           Новая цель
         </button>
       )}
 
       {isCreating && (
         <GoalForm userId={userId} onSaved={() => setIsCreating(false)} onCancel={() => setIsCreating(false)} />
+      )}
+
+      {goals.length === 0 && !isCreating && (
+        <p className="rounded-md border border-dashed p-3 text-center text-xs text-muted-foreground">
+          Пока нет целей. Добавьте первую, чтобы отслеживать прогресс.
+        </p>
       )}
 
       <ul className="space-y-2">

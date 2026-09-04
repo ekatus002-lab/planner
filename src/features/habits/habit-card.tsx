@@ -1,6 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { Flame, Trophy } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import type { HabitStats } from './use-habits';
 
 type Props = {
@@ -27,35 +32,70 @@ export function HabitCard({ stat, areaColor, onToggleCompletion, onEdit }: Props
   }
 
   return (
-    <li className="flex items-center gap-2">
-      <input
-        type="checkbox"
-        aria-label={`Выполнено сегодня: ${habit.title}`}
-        checked={isCompleted}
-        onChange={handleToggle}
-      />
-      {areaColor && (
-        <span
-          aria-hidden="true"
-          className="inline-block h-3 w-3 rounded-full"
-          style={{ backgroundColor: areaColor }}
+    <li>
+      <Card
+        size="sm"
+        className={cn(
+          'flex-row items-center gap-2.5 px-3 py-2 transition-colors',
+          isCompleted && 'bg-primary/5 ring-primary/25',
+        )}
+      >
+        <Checkbox
+          aria-label={`Выполнено сегодня: ${habit.title}`}
+          checked={isCompleted}
+          onCheckedChange={handleToggle}
+          className="shrink-0"
         />
-      )}
-      <button type="button" onClick={onEdit} className="flex-1 text-left">
-        {habit.title}
-      </button>
-      {habit.targetValue !== null && (
-        <input
-          type="number"
-          aria-label={`Значение: ${habit.title}`}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          className="w-16"
-        />
-      )}
-      <span aria-label={`Текущая серия: ${habit.title}`}>Серия {currentStreak}</span>
-      <span aria-label={`Лучшая серия: ${habit.title}`}>Рекорд {bestStreak}</span>
-      <span aria-label={`Неделя: ${habit.title}`}>{weekRate}%</span>
+
+        {areaColor && (
+          <span
+            aria-hidden="true"
+            className="inline-block size-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: areaColor }}
+          />
+        )}
+
+        <button
+          type="button"
+          onClick={onEdit}
+          className={cn(
+            'min-w-0 flex-1 truncate text-left text-sm font-medium hover:underline',
+            isCompleted && 'text-muted-foreground line-through',
+          )}
+        >
+          {habit.title}
+        </button>
+
+        <div className="flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
+          <span
+            aria-label={`Текущая серия: ${habit.title}`}
+            className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 font-medium text-foreground tabular-nums"
+          >
+            <Flame className="size-3" aria-hidden="true" />
+            Серия {currentStreak}
+          </span>
+          <span
+            aria-label={`Лучшая серия: ${habit.title}`}
+            className="hidden items-center gap-1 tabular-nums sm:inline-flex"
+          >
+            <Trophy className="size-3" aria-hidden="true" />
+            Рекорд {bestStreak}
+          </span>
+          <span aria-label={`Неделя: ${habit.title}`} className="tabular-nums">
+            {weekRate}%
+          </span>
+        </div>
+
+        {habit.targetValue !== null && (
+          <Input
+            type="number"
+            aria-label={`Значение: ${habit.title}`}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            className="h-7 w-14 shrink-0 px-1.5 text-right text-xs"
+          />
+        )}
+      </Card>
     </li>
   );
 }

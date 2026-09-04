@@ -8,8 +8,8 @@ export type Goal = {
   areaId: string | null;
   title: string;
   description: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   progressMode: GoalProgressMode;
   manualProgress: number;
   manualAdjustment: number;
@@ -22,8 +22,8 @@ export type CreateGoalInput = {
   title: string;
   description?: string;
   areaId?: string | null;
-  startDate: string;
-  endDate: string;
+  startDate?: string | null;
+  endDate?: string | null;
   progressMode?: GoalProgressMode;
   manualProgress?: number;
   manualAdjustment?: number;
@@ -35,8 +35,8 @@ export type UpdateGoalInput = Partial<{
   title: string;
   description: string;
   areaId: string | null;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   progressMode: GoalProgressMode;
   manualProgress: number;
   manualAdjustment: number;
@@ -54,9 +54,9 @@ export type CalculateGoalProgressInput = {
   tasks: GoalProgressTaskInput[];
   habits: GoalProgressHabitInput[];
   /** The goal's own start_date - the lower bound of its "goal period". */
-  startDate: string;
+  startDate: string | null;
   /** The goal's own end_date - the upper bound of its "goal period". */
-  endDate: string;
+  endDate: string | null;
   /** "Today", local calendar date - the automatic habit window is capped at min(today, endDate). */
   today: string;
 };

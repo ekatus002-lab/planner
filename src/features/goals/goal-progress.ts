@@ -17,11 +17,16 @@ function taskRateOf(tasks: CalculateGoalProgressInput['tasks']): number | null {
 // for automatic habit contribution.
 function habitRateOf(
   habits: CalculateGoalProgressInput['habits'],
-  startDate: string,
-  endDate: string,
+  startDate: string | null,
+  endDate: string | null,
   today: string,
 ): number | null {
   if (habits.length === 0) return null;
+  // Without both ends of the goal's own date range there is no window to
+  // count expected habit occurrences over - automatic habit-based progress
+  // is simply unavailable for an open-ended goal (same as "no linked
+  // habits"), while task-based progress and manual mode are unaffected.
+  if (startDate === null || endDate === null) return null;
 
   const windowEnd = today < endDate ? today : endDate; // min(today, endDate)
   let totalExpected = 0;

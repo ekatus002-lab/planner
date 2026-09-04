@@ -63,6 +63,17 @@ describe('GoalsPanel', () => {
     expect(await screen.findByText('Portfolio')).toBeInTheDocument();
   });
 
+  it('creates a new goal via the form with both date fields left empty', async () => {
+    const user = userEvent.setup();
+    render(<GoalsPanel userId="user-1" today={TODAY} />);
+
+    await user.click(screen.getByRole('button', { name: 'Новая цель' }));
+    await user.type(screen.getByLabelText('Название'), 'Someday');
+    await user.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    expect(await screen.findByText('Someday')).toBeInTheDocument();
+  });
+
   it('shows a compact source explanation with task and habit contributions', async () => {
     const goal = await createGoal(db, {
       userId: 'user-1',

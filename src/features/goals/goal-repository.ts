@@ -9,8 +9,8 @@ export type GoalRow = {
   area_id: string | null;
   title: string;
   description: string;
-  start_date: string;
-  end_date: string;
+  start_date: string | null;
+  end_date: string | null;
   progress_mode: string;
   manual_progress: number;
   manual_adjustment: number;
@@ -53,7 +53,9 @@ export async function listGoals(db: CommonPowerSyncDatabase, userId: string): Pr
 export async function createGoal(db: CommonPowerSyncDatabase, input: CreateGoalInput): Promise<Goal> {
   const title = input.title.trim();
   if (!title) throw new Error('Goal title is required');
-  if (input.endDate < input.startDate) {
+  const startDate = input.startDate ?? null;
+  const endDate = input.endDate ?? null;
+  if (startDate && endDate && endDate < startDate) {
     throw new Error('Goal end date must not be before its start date');
   }
 
@@ -76,8 +78,8 @@ export async function createGoal(db: CommonPowerSyncDatabase, input: CreateGoalI
       areaId,
       title,
       description,
-      input.startDate,
-      input.endDate,
+      startDate,
+      endDate,
       progressMode,
       manualProgress,
       manualAdjustment,
@@ -92,8 +94,8 @@ export async function createGoal(db: CommonPowerSyncDatabase, input: CreateGoalI
     areaId,
     title,
     description,
-    startDate: input.startDate,
-    endDate: input.endDate,
+    startDate,
+    endDate,
     progressMode,
     manualProgress,
     manualAdjustment,
