@@ -1,6 +1,16 @@
 'use client';
 
-import { cloneElement, isValidElement, useRef, type CSSProperties, type PointerEvent, type ReactElement, type ReactNode } from 'react';
+import {
+  cloneElement,
+  createContext,
+  isValidElement,
+  useContext,
+  useRef,
+  type CSSProperties,
+  type PointerEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { format } from 'date-fns';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { usePowerSync } from '@powersync/react';
@@ -10,19 +20,35 @@ import { resizeScheduledTaskById } from '@/features/tasks/scheduling';
 import type { CalendarSlotDropPayload, ScheduledEventDragPayload } from './planner-dnd-context';
 import type { PlannerCalendarEvent } from './calendar-types';
 
+// Reports a plain click on a day cell/time slot's background as "select
+// this day" (feeds `calendar-board.tsx`'s `selectedDate` state, driving
+// `SelectedDayList`). Deliberately *not* react-big-calendar's own
+// `selectable`/`onSelectSlot` - that turns on its `Selection` helper, which
+// calls `document.elementFromPoint` unconditionally and crashes under
+// jsdom (no real layout/hit-testing there), failing every component test
+// that so much as clicks inside the calendar.
+const SelectDateContext = createContext<(date: Date) => void>(() => {});
+export const SelectDateProvider = SelectDateContext.Provider;
+
 // A month-view day cell as a dnd-kit drop target - a Backlog task dropped
 // here becomes date-only (no specific time to position it at). Wraps
 // react-big-calendar's own cell content unchanged; only adds the drop
-// target and a highlight while something is dragged over it.
+// target, a highlight while something is dragged over it, and click-to-select.
 export function DroppableDateCell({ value, children }: DateCellWrapperProps) {
   const dateKey = format(value, 'yyyy-MM-dd');
+  const onSelectDate = useContext(SelectDateContext);
   const { setNodeRef, isOver } = useDroppable({
     id: `date-cell-${dateKey}`,
     data: { type: 'calendar-slot', date: dateKey } satisfies CalendarSlotDropPayload,
   });
 
   return (
-    <div ref={setNodeRef} className={isOver ? 'h-full bg-primary/10' : 'h-full'}>
+    <div
+      ref={setNodeRef}
+      data-cell-date={dateKey}
+      className={isOver ? 'h-full bg-primary/10' : 'h-full'}
+      onClick={() => onSelectDate(value)}
+    >
       {children}
     </div>
   );
@@ -41,13 +67,19 @@ export type TimeSlotWrapperProps = { value: Date; resource?: unknown; children?:
 // (`resolvePlannerDrop` fills in the default 60-minute duration).
 export function DroppableTimeSlot({ value, children }: TimeSlotWrapperProps) {
   const startAt = value.toISOString();
+  const onSelectDate = useContext(SelectDateContext);
   const { setNodeRef, isOver } = useDroppable({
     id: `time-slot-${startAt}`,
     data: { type: 'calendar-slot', date: format(value, 'yyyy-MM-dd'), startAt } satisfies CalendarSlotDropPayload,
   });
 
   return (
-    <div ref={setNodeRef} className={isOver ? 'h-full bg-primary/10' : 'h-full'}>
+    <div
+      ref={setNodeRef}
+      data-slot-start={startAt}
+      className={isOver ? 'h-full bg-primary/10' : 'h-full'}
+      onClick={() => onSelectDate(value)}
+    >
       {children}
     </div>
   );
@@ -106,6 +138,7 @@ function EventResizeHandle({ taskId, startAt, endAt }: { taskId: string; startAt
       role="separator"
       aria-orientation="horizontal"
       aria-label="Изменить длительность"
+      data-task-id={taskId}
       className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
@@ -144,6 +177,7 @@ export function DraggableEventWrapper(props: EventWrapperProps<PlannerCalendarEv
   return cloneElement(children as ReactElement<Record<string, unknown>>, {
     ref: setNodeRef,
     style: { ...elementProps.style, ...dragStyle },
+    'data-task-id': event.taskId,
     ...attributes,
     ...listeners,
     children: isResizable ? (

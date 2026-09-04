@@ -23,7 +23,8 @@ import { tasksToCalendarEvents } from './calendar-adapter';
 import { useCalendarTasks } from './use-calendar-tasks';
 import { DateNavigation } from './date-navigation';
 import { CalendarEventItem } from './calendar-event';
-import { DraggableEventWrapper, DroppableDateCell, DroppableTimeSlot } from './calendar-drop-targets';
+import { DraggableEventWrapper, DroppableDateCell, DroppableTimeSlot, SelectDateProvider } from './calendar-drop-targets';
+import { SelectedDayList } from './selected-day-list';
 import type { CalendarView, PlannerCalendarEvent } from './calendar-types';
 
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -82,6 +83,7 @@ type Props = { userId: string };
 export function CalendarBoard({ userId }: Props) {
   const [view, setView] = useState<CalendarView>('month');
   const [date, setDate] = useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [editingEvent, setEditingEvent] = useState<PlannerCalendarEvent | null>(null);
 
   const { start, end } = useMemo(() => computeVisibleRange(view, date), [view, date]);
@@ -105,38 +107,43 @@ export function CalendarBoard({ userId }: Props) {
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="min-h-0 flex-1">
-        <BigCalendar
-          localizer={localizer}
-          culture="ru"
-          events={events}
-          view={view}
-          date={date}
-          views={CALENDAR_VIEWS}
-          onView={(nextView: RbcView) => setView(nextView as CalendarView)}
-          onNavigate={(nextDate: Date) => setDate(nextDate)}
-          onSelectEvent={(event) => setEditingEvent(event)}
-          messages={TOOLBAR_MESSAGES}
-          components={{
-            toolbar: DateNavigation,
-            event: CalendarEventItem,
-            eventWrapper: DraggableEventWrapper,
-            dateCellWrapper: DroppableDateCell,
-            // See `TimeSlotWrapperProps`'s own comment in
-            // `calendar-drop-targets.tsx` for why this cast is needed:
-            // `@types/react-big-calendar` types `timeSlotWrapper` as a bare
-            // `React.ComponentType` even though it always receives
-            // `{ value, resource, children }` at runtime.
-            timeSlotWrapper: DroppableTimeSlot as unknown as ComponentType,
-          }}
-          eventPropGetter={(event: PlannerCalendarEvent) => ({
-            style: {
-              backgroundColor: event.areaColor,
-              opacity: event.task.status === 'completed' ? 0.6 : 1,
-            },
-          })}
-          style={{ height: '100%' }}
-          elementProps={calendarElementProps}
-        />
+        <SelectDateProvider value={setSelectedDate}>
+          <BigCalendar
+            localizer={localizer}
+            culture="ru"
+            events={events}
+            view={view}
+            date={date}
+            views={CALENDAR_VIEWS}
+            onView={(nextView: RbcView) => setView(nextView as CalendarView)}
+            onNavigate={(nextDate: Date) => setDate(nextDate)}
+            onSelectEvent={(event) => {
+              setEditingEvent(event);
+              setSelectedDate(event.start);
+            }}
+            messages={TOOLBAR_MESSAGES}
+            components={{
+              toolbar: DateNavigation,
+              event: CalendarEventItem,
+              eventWrapper: DraggableEventWrapper,
+              dateCellWrapper: DroppableDateCell,
+              // See `TimeSlotWrapperProps`'s own comment in
+              // `calendar-drop-targets.tsx` for why this cast is needed:
+              // `@types/react-big-calendar` types `timeSlotWrapper` as a bare
+              // `React.ComponentType` even though it always receives
+              // `{ value, resource, children }` at runtime.
+              timeSlotWrapper: DroppableTimeSlot as unknown as ComponentType,
+            }}
+            eventPropGetter={(event: PlannerCalendarEvent) => ({
+              style: {
+                backgroundColor: event.areaColor,
+                opacity: event.task.status === 'completed' ? 0.6 : 1,
+              },
+            })}
+            style={{ height: '100%' }}
+            elementProps={calendarElementProps}
+          />
+        </SelectDateProvider>
       </div>
 
       {editingEvent && (
@@ -150,6 +157,10 @@ export function CalendarBoard({ userId }: Props) {
           />
         </div>
       )}
+
+      <div className="max-h-[40%] shrink-0 overflow-y-auto border-t pt-3">
+        <SelectedDayList userId={userId} date={format(selectedDate, 'yyyy-MM-dd')} />
+      </div>
     </div>
   );
 }
