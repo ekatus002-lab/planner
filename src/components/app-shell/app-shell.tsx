@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { AreaSettings } from '@/features/areas/area-settings';
 import { BacklogPanel } from '@/features/tasks/backlog-panel';
+import { CalendarBoard } from '@/features/calendar/calendar-board';
 import { SyncStatusIndicator } from '@/components/sync/sync-status';
 
 type Props = { userId: string };
 
-// The Slice A desktop shell: locks in the eventual three-column proportions
-// (backlog / calendar / habits) without building the calendar or habits
-// features themselves - center and right stay explicit placeholders until
-// later slices implement them.
+// The desktop shell: three-column layout (backlog / calendar / habits).
+// Slice B fills in the center calendar column; the right (habits) column
+// remains an explicit placeholder until Slice C implements it.
 export function AppShell({ userId }: Props) {
   const [isAreaSettingsOpen, setIsAreaSettingsOpen] = useState(false);
 
@@ -35,8 +35,8 @@ export function AppShell({ userId }: Props) {
           <section className="overflow-y-auto border-r p-4">
             <BacklogPanel userId={userId} />
           </section>
-          <section className="flex items-center justify-center p-4 text-center text-muted-foreground">
-            Календарь появится на следующем этапе
+          <section className="min-w-0 overflow-hidden p-4">
+            <CalendarBoard userId={userId} />
           </section>
           <section className="flex items-center justify-center border-l p-4 text-center text-muted-foreground">
             Привычки появятся позже
