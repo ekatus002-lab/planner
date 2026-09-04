@@ -27,12 +27,20 @@ const MOBILE_TABS: ReadonlyArray<{ id: MobileTab; label: string; icon: Component
 // later slices implement them.
 //
 // Below Tailwind's `md` breakpoint this collapses to a single full-width
-// section plus a fixed bottom tab bar (one of the three sections visible at
-// a time, chosen by `activeMobileTab`); at `md` and above all three render
+// section plus a bottom tab bar (one of the three sections visible at a
+// time, chosen by `activeMobileTab`); at `md` and above all three render
 // side-by-side exactly as before, ignoring `activeMobileTab` entirely. Each
 // section is a single DOM node either way - the breakpoint switch is pure
 // CSS (`hidden` / `md:block`), never a duplicated component tree, so there
 // is only ever one live `BacklogPanel` instance.
+//
+// The tab bar itself is a normal (non-`position:fixed`) flex child pinned to
+// the bottom of the `h-screen` column, with `shrink-0` so the content grid
+// above it (`flex-1 overflow-hidden`, each section scrolling internally)
+// never grows underneath it. This deliberately avoids `position:fixed`,
+// which on iOS Safari fights the dynamic address-bar/toolbar's effect on
+// viewport height; being a real flow participant means it's never covered
+// by content and never needs bottom padding on the sections to compensate.
 export function AppShell({ userId }: Props) {
   const [isAreaSettingsOpen, setIsAreaSettingsOpen] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>('tasks');
@@ -74,18 +82,16 @@ export function AppShell({ userId }: Props) {
       ) : (
         <>
           <div className="grid flex-1 overflow-hidden md:grid-cols-[320px_1fr_280px]">
-            <section
-              className={`${sectionClassName('tasks', 'block')} overflow-y-auto border-r p-4 pb-20 md:pb-4`}
-            >
+            <section className={`${sectionClassName('tasks', 'block')} overflow-y-auto border-r p-4`}>
               <BacklogPanel userId={userId} />
             </section>
             <section
-              className={`${sectionClassName('calendar', 'flex-center')} overflow-y-auto p-4 pb-20 text-center text-muted-foreground md:pb-4`}
+              className={`${sectionClassName('calendar', 'flex-center')} overflow-y-auto p-4 text-center text-muted-foreground`}
             >
               Календарь появится на следующем этапе
             </section>
             <section
-              className={`${sectionClassName('habits', 'flex-center')} overflow-y-auto border-l p-4 pb-20 text-center text-muted-foreground md:pb-4`}
+              className={`${sectionClassName('habits', 'flex-center')} overflow-y-auto border-l p-4 text-center text-muted-foreground`}
             >
               Привычки появятся позже
             </section>
