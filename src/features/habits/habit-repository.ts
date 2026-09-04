@@ -75,12 +75,14 @@ export function mapHabitCompletionRow(row: HabitCompletionRow): HabitCompletion 
 
 const VALID_ISO_WEEKDAYS: readonly IsoWeekday[] = [1, 2, 3, 4, 5, 6, 7];
 
-function isoWeekdayOf(date: string): IsoWeekday {
-  // `date` is a plain `YYYY-MM-DD` string with no time component. Parsing it
-  // as UTC midnight (rather than via the no-arg `new Date(date)` local-time
-  // constructor) keeps the computed weekday stable regardless of the host's
-  // local timezone - a local-first app must not let the same stored date
-  // resolve to different weekdays on different devices.
+// `date` is a plain `YYYY-MM-DD` string with no time component. Parsing it
+// as UTC midnight (rather than via the no-arg `new Date(date)` local-time
+// constructor) keeps the computed weekday stable regardless of the host's
+// local timezone - a local-first app must not let the same stored date
+// resolve to different weekdays on different devices. Exported so
+// `habit-metrics.ts` can build week/month ranges from the same definition
+// of "weekday" this repository uses for scheduling.
+export function isoWeekdayOf(date: string): IsoWeekday {
   const jsDay = new Date(`${date}T00:00:00.000Z`).getUTCDay(); // 0 = Sunday .. 6 = Saturday
   return (jsDay === 0 ? 7 : jsDay) as IsoWeekday;
 }
@@ -91,8 +93,13 @@ function compareDates(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Adds `days` calendar days to a `YYYY-MM-DD` string, in UTC. */
-function addDays(date: string, days: number): string {
+/**
+ * Adds `days` calendar days to a `YYYY-MM-DD` string, in UTC. Exported so
+ * `habit-metrics.ts` computes week/month ranges with the same date
+ * arithmetic used for streaks and expected-date iteration here, instead of
+ * a second, potentially-divergent implementation.
+ */
+export function addDays(date: string, days: number): string {
   const next = new Date(`${date}T00:00:00.000Z`);
   next.setUTCDate(next.getUTCDate() + days);
   return next.toISOString().slice(0, 10);

@@ -1,4 +1,4 @@
-import { expectedHabitDates, isHabitScheduledOn } from './habit-repository';
+import { addDays, expectedHabitDates, isHabitScheduledOn, isoWeekdayOf } from './habit-repository';
 import type { Habit, HabitCompletion } from './habit-types';
 
 // A hard backward-walk cap for `calculateCurrentStreak` when a habit has no
@@ -6,12 +6,6 @@ import type { Habit, HabitCompletion } from './habit-types';
 // scheduled and always completed would otherwise walk back indefinitely.
 // Ten years comfortably exceeds any real usage history for this app.
 const MAX_STREAK_LOOKBACK_DAYS = 3650;
-
-function addDays(date: string, days: number): string {
-  const next = new Date(`${date}T00:00:00.000Z`);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next.toISOString().slice(0, 10);
-}
 
 function completedDateSet(completions: HabitCompletion[]): Set<string> {
   const set = new Set<string>();
@@ -84,4 +78,24 @@ export function calculateHabitCompletionRate(
   const completedDates = completedDateSet(completions);
   const completedCount = expected.filter((date) => completedDates.has(date)).length;
   return Math.round((completedCount / expected.length) * 100);
+}
+
+export type DateRange = { start: string; end: string };
+
+// The ISO week (Monday..Sunday) containing `date` - used for the Habits
+// panel's "weekly completion" figure.
+export function isoWeekRange(date: string): DateRange {
+  const weekday = isoWeekdayOf(date); // 1 (Mon) .. 7 (Sun)
+  const start = addDays(date, -(weekday - 1));
+  return { start, end: addDays(start, 6) };
+}
+
+// The calendar month containing `date` - used for the Habits panel's
+// "monthly completion" figure.
+export function isoMonthRange(date: string): DateRange {
+  const [year, month] = date.slice(0, 7).split('-').map(Number);
+  const start = `${date.slice(0, 7)}-01`;
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const end = `${date.slice(0, 7)}-${String(lastDay).padStart(2, '0')}`;
+  return { start, end };
 }
