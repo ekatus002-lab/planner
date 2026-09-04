@@ -78,25 +78,34 @@ export function TaskForm({ userId, task, onSaved, onCancel }: Props) {
     }
   }
 
+  // Shared with area-settings.tsx's inputs: `text-base` (16px) keeps iOS
+  // Safari from auto-zooming on focus, and `min-h-11` gives every field a
+  // 44px+ touch target - both requirements only bite on a real phone, never
+  // in jsdom-based tests.
+  const fieldClassName = 'mt-1 block w-full min-h-11 rounded-md border px-3 py-2 text-base';
+  const buttonClassName = 'min-h-11 rounded-md border px-4 py-2 text-sm font-medium';
+
   return (
     <form onSubmit={handleSubmit} aria-label="Задача" className="space-y-3">
       <label className="block">
-        <span>Название</span>
+        <span className="text-sm font-medium">Название</span>
         <input
           aria-label="Название"
           value={title}
           maxLength={TITLE_MAX_LENGTH}
           onChange={(event) => setTitle(event.target.value)}
           required
+          className={fieldClassName}
         />
       </label>
 
       <label className="block">
-        <span>Сфера жизни</span>
+        <span className="text-sm font-medium">Сфера жизни</span>
         <select
           aria-label="Сфера жизни"
           value={areaId ?? ''}
           onChange={(event) => setAreaId(event.target.value)}
+          className={fieldClassName}
         >
           <option value="">Без сферы</option>
           {areas.map((area) => (
@@ -108,20 +117,22 @@ export function TaskForm({ userId, task, onSaved, onCancel }: Props) {
       </label>
 
       <label className="block">
-        <span>Описание</span>
+        <span className="text-sm font-medium">Описание</span>
         <textarea
           aria-label="Описание"
           value={description}
           onChange={(event) => setDescription(event.target.value)}
+          className={fieldClassName}
         />
       </label>
 
       <label className="block">
-        <span>Приоритет</span>
+        <span className="text-sm font-medium">Приоритет</span>
         <select
           aria-label="Приоритет"
           value={priority}
           onChange={(event) => setPriority(event.target.value as TaskPriority)}
+          className={fieldClassName}
         >
           <option value="low">Низкий</option>
           <option value="normal">Обычный</option>
@@ -132,11 +143,11 @@ export function TaskForm({ userId, task, onSaved, onCancel }: Props) {
       {error && <p role="alert">{error}</p>}
 
       <div className="flex gap-2">
-        <button type="submit" disabled={isSaving}>
+        <button type="submit" disabled={isSaving} className={buttonClassName}>
           Сохранить
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel}>
+          <button type="button" onClick={onCancel} className={buttonClassName}>
             Отмена
           </button>
         )}
