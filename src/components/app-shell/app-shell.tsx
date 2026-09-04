@@ -85,7 +85,7 @@ export function AppShell({ userId }: Props) {
               Календарь появится на следующем этапе
             </section>
             <section
-              className={`${sectionClassName('habits', 'block')} overflow-y-auto border-l p-4 pb-20 text-center text-muted-foreground md:pb-4`}
+              className={`${sectionClassName('habits', 'flex-center')} overflow-y-auto border-l p-4 pb-20 text-center text-muted-foreground md:pb-4`}
             >
               Привычки появятся позже
             </section>

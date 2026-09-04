@@ -97,6 +97,6 @@ describe('AppShell mobile tab bar', () => {
     expect(calendarSection.className).toMatch(/\bhidden\b/);
     expect(calendarSection.className).toMatch(/md:flex/);
     expect(habitsSection.className).toMatch(/\bhidden\b/);
-    expect(habitsSection.className).toMatch(/md:block/);
+    expect(habitsSection.className).toMatch(/md:flex/);
   });
 });
