@@ -190,43 +190,47 @@ export function TaskForm({ userId, task, onSaved, onCancel, showScheduling = fal
       {showScheduling && (
         <div className="space-y-3 border-t pt-3">
           <label className="block">
-            <span>Дата</span>
+            <span className="text-sm font-medium">Дата</span>
             <input
               type="date"
               aria-label="Дата"
               value={scheduledDate}
               onChange={(event) => setScheduledDate(event.target.value)}
+              className={fieldClassName}
             />
           </label>
 
-          <label className="flex items-center gap-2">
+          <label className="flex min-h-11 items-center gap-2">
             <input
               type="checkbox"
               aria-label="Весь день"
               checked={allDay}
               onChange={(event) => setAllDay(event.target.checked)}
+              className="size-4"
             />
-            <span>Весь день</span>
+            <span className="text-sm font-medium">Весь день</span>
           </label>
 
           {!allDay && (
             <div className="flex gap-2">
-              <label className="block">
-                <span>Начало</span>
+              <label className="block min-w-0 flex-1">
+                <span className="text-sm font-medium">Начало</span>
                 <input
                   type="time"
                   aria-label="Начало"
                   value={startTime}
                   onChange={(event) => setStartTime(event.target.value)}
+                  className={fieldClassName}
                 />
               </label>
-              <label className="block">
-                <span>Конец</span>
+              <label className="block min-w-0 flex-1">
+                <span className="text-sm font-medium">Конец</span>
                 <input
                   type="time"
                   aria-label="Конец"
                   value={endTime}
                   onChange={(event) => setEndTime(event.target.value)}
+                  className={fieldClassName}
                 />
               </label>
             </div>

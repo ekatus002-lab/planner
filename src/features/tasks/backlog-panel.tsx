@@ -143,6 +143,7 @@ export function BacklogPanel({ userId }: Props) {
       {isCreating && (
         <TaskForm
           userId={userId}
+          showScheduling
           onSaved={() => setIsCreating(false)}
           onCancel={() => setIsCreating(false)}
         />
@@ -157,6 +158,7 @@ export function BacklogPanel({ userId }: Props) {
                   <TaskForm
                     userId={userId}
                     task={task}
+                    showScheduling
                     onSaved={() => setEditingTaskId(null)}
                     onCancel={() => setEditingTaskId(null)}
                   />

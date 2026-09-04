@@ -113,47 +113,57 @@ export function CalendarBoard({ userId }: Props) {
     'data-view': view,
   } as HTMLAttributes<HTMLElement>;
 
+  // The week view's time grid (7 day columns + a time gutter) has no room to
+  // breathe on a narrow phone screen - shrinking each column to fit leaves
+  // times/events unreadable. Below `md`, force it to a comfortable minimum
+  // width inside a horizontally-scrolling wrapper instead of squeezing it;
+  // month/day views already fit their available width, so they're
+  // unaffected (`overflow-x-auto` alone is a no-op when nothing overflows).
+  const weekViewMobileMinWidth = view === 'week' ? 'max-md:w-[700px]' : '';
+
   return (
     <div className="flex h-full flex-col gap-3">
-      <div className="min-h-0 flex-1">
-        <SelectDateProvider value={setSelectedDate}>
-          <BigCalendar
-            localizer={localizer}
-            culture="ru"
-            events={events}
-            view={view}
-            date={date}
-            views={CALENDAR_VIEWS}
-            onView={(nextView: RbcView) => setView(nextView as CalendarView)}
-            onNavigate={(nextDate: Date) => setDate(nextDate)}
-            onSelectEvent={(event) => {
-              setEditingEvent(event);
-              setSelectedDate(event.start);
-            }}
-            messages={TOOLBAR_MESSAGES}
-            formats={CALENDAR_FORMATS}
-            components={{
-              toolbar: DateNavigation,
-              event: CalendarEventItem,
-              eventWrapper: DraggableEventWrapper,
-              dateCellWrapper: DroppableDateCell,
-              // See `TimeSlotWrapperProps`'s own comment in
-              // `calendar-drop-targets.tsx` for why this cast is needed:
-              // `@types/react-big-calendar` types `timeSlotWrapper` as a bare
-              // `React.ComponentType` even though it always receives
-              // `{ value, resource, children }` at runtime.
-              timeSlotWrapper: DroppableTimeSlot as unknown as ComponentType,
-            }}
-            eventPropGetter={(event: PlannerCalendarEvent) => ({
-              style: {
-                backgroundColor: event.areaColor,
-                opacity: event.task.status === 'completed' ? 0.6 : 1,
-              },
-            })}
-            style={{ height: '100%' }}
-            elementProps={calendarElementProps}
-          />
-        </SelectDateProvider>
+      <div className="min-h-0 flex-1 overflow-x-auto">
+        <div className={`h-full ${weekViewMobileMinWidth}`}>
+          <SelectDateProvider value={setSelectedDate}>
+            <BigCalendar
+              localizer={localizer}
+              culture="ru"
+              events={events}
+              view={view}
+              date={date}
+              views={CALENDAR_VIEWS}
+              onView={(nextView: RbcView) => setView(nextView as CalendarView)}
+              onNavigate={(nextDate: Date) => setDate(nextDate)}
+              onSelectEvent={(event) => {
+                setEditingEvent(event);
+                setSelectedDate(event.start);
+              }}
+              messages={TOOLBAR_MESSAGES}
+              formats={CALENDAR_FORMATS}
+              components={{
+                toolbar: DateNavigation,
+                event: CalendarEventItem,
+                eventWrapper: DraggableEventWrapper,
+                dateCellWrapper: DroppableDateCell,
+                // See `TimeSlotWrapperProps`'s own comment in
+                // `calendar-drop-targets.tsx` for why this cast is needed:
+                // `@types/react-big-calendar` types `timeSlotWrapper` as a bare
+                // `React.ComponentType` even though it always receives
+                // `{ value, resource, children }` at runtime.
+                timeSlotWrapper: DroppableTimeSlot as unknown as ComponentType,
+              }}
+              eventPropGetter={(event: PlannerCalendarEvent) => ({
+                style: {
+                  backgroundColor: event.areaColor,
+                  opacity: event.task.status === 'completed' ? 0.6 : 1,
+                },
+              })}
+              style={{ height: '100%' }}
+              elementProps={calendarElementProps}
+            />
+          </SelectDateProvider>
+        </div>
       </div>
 
       {editingEvent && (
