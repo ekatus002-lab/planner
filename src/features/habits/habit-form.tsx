@@ -4,6 +4,8 @@ import { useState, type FormEvent } from 'react';
 import { usePowerSync } from '@powersync/react';
 import type { CommonPowerSyncDatabase } from '@powersync/web';
 import { useAreas } from '@/features/areas/use-areas';
+import { linkHabitToGoal, unlinkHabitFromGoal } from '@/features/goals/goal-repository';
+import { useGoalOptions, useLinkedGoalIdsForHabit } from '@/features/goals/use-goals';
 import { createHabit, updateHabit } from './habit-repository';
 import type { Habit, IsoWeekday } from './habit-types';
 
@@ -32,6 +34,8 @@ type Props = {
 export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
   const db = usePowerSync() as CommonPowerSyncDatabase | null;
   const { areas } = useAreas(userId);
+  const goalOptions = useGoalOptions(userId);
+  const linkedGoalIds = useLinkedGoalIdsForHabit(habit?.id);
 
   const [title, setTitle] = useState(habit?.title ?? '');
   const [areaId, setAreaId] = useState(habit?.areaId ?? '');
@@ -41,13 +45,27 @@ export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
   const [targetValue, setTargetValue] = useState(habit?.targetValue?.toString() ?? '');
   const [targetUnit, setTargetUnit] = useState(habit?.targetUnit ?? '');
   const [active, setActive] = useState(habit?.active ?? true);
+  const [selectedGoalIds, setSelectedGoalIds] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // `selectedGoalIds` starts `null` (meaning "use the watched
+  // `linkedGoalIds`") and only becomes an explicit array once the user
+  // actually toggles a checkbox - avoiding a render-time state sync from a
+  // query that only resolves after the form's first render.
+  const goalIds = selectedGoalIds ?? linkedGoalIds;
 
   function toggleWeekday(iso: IsoWeekday) {
     setWeekdays((current) =>
       current.includes(iso) ? current.filter((day) => day !== iso) : [...current, iso].sort(),
     );
+  }
+
+  function toggleGoal(goalId: string) {
+    setSelectedGoalIds((current) => {
+      const base = current ?? linkedGoalIds;
+      return base.includes(goalId) ? base.filter((id) => id !== goalId) : [...base, goalId];
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -70,6 +88,7 @@ export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
     setIsSaving(true);
     try {
       const parsedTargetValue = targetValue.trim() === '' ? null : Number(targetValue);
+      let habitId = habit?.id;
 
       if (habit) {
         await updateHabit(db, habit.id, {
@@ -83,7 +102,7 @@ export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
           active,
         });
       } else {
-        await createHabit(db, {
+        const created = await createHabit(db, {
           userId,
           title: trimmedTitle,
           areaId: areaId || null,
@@ -94,6 +113,14 @@ export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
           targetUnit: targetUnit.trim() || null,
           active,
         });
+        habitId = created.id;
+      }
+
+      if (habitId) {
+        const toAdd = goalIds.filter((id) => !linkedGoalIds.includes(id));
+        const toRemove = linkedGoalIds.filter((id) => !goalIds.includes(id));
+        for (const goalId of toAdd) await linkHabitToGoal(db, userId, goalId, habitId);
+        for (const goalId of toRemove) await unlinkHabitFromGoal(db, goalId, habitId);
       }
 
       setError(null);
@@ -197,6 +224,23 @@ export function HabitForm({ userId, habit, onSaved, onCancel }: Props) {
         />
         Активна
       </label>
+
+      {goalOptions.length > 0 && (
+        <fieldset className="space-y-1">
+          <legend>Цели</legend>
+          {goalOptions.map((goal) => (
+            <label key={goal.id} className="inline-flex items-center gap-1">
+              <input
+                type="checkbox"
+                aria-label={`Цель: ${goal.title}`}
+                checked={goalIds.includes(goal.id)}
+                onChange={() => toggleGoal(goal.id)}
+              />
+              {goal.title}
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       {error && <p role="alert">{error}</p>}
 

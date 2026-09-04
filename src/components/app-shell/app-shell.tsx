@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AreaSettings } from '@/features/areas/area-settings';
 import { BacklogPanel } from '@/features/tasks/backlog-panel';
 import { HabitsPanel } from '@/features/habits/habits-panel';
+import { GoalsPanel } from '@/features/goals/goals-panel';
 import { SyncStatusIndicator } from '@/components/sync/sync-status';
 
 type Props = { userId: string };
@@ -21,8 +22,10 @@ function todayLocalDate(): string {
 }
 
 // The Slice A/C desktop shell: locks in the eventual three-column
-// proportions (backlog+goals / calendar / habits). The center calendar
-// column stays an explicit placeholder until Slice B implements it.
+// proportions (backlog+goals / calendar / habits) - the design spec places
+// Goals in the left column alongside Backlog even though it is a Slice C
+// feature. The center calendar column stays an explicit placeholder until
+// Slice B implements it.
 export function AppShell({ userId }: Props) {
   const [isAreaSettingsOpen, setIsAreaSettingsOpen] = useState(false);
   const [today] = useState(todayLocalDate);
@@ -45,8 +48,9 @@ export function AppShell({ userId }: Props) {
         </div>
       ) : (
         <div className="grid flex-1 grid-cols-[320px_1fr_280px] overflow-hidden">
-          <section className="overflow-y-auto border-r p-4">
+          <section className="space-y-6 overflow-y-auto border-r p-4">
             <BacklogPanel userId={userId} />
+            <GoalsPanel userId={userId} today={today} />
           </section>
           <section className="flex items-center justify-center p-4 text-center text-muted-foreground">
             Календарь появится на следующем этапе
