@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import type { CommonPowerSyncDatabase } from '@powersync/web';
 import type { Task } from './task-types';
 
@@ -18,9 +19,13 @@ function assertEndAfterStart(startAt: string, endAt: string): void {
 // Local calendar date (YYYY-MM-DD) for an ISO instant, per the plan's rule
 // that `scheduled_date` is the authoritative day for date-only/all-day tasks
 // while `start_at`/`end_at` are authoritative for timed ones - i.e. the
-// stored day always tracks the wall-clock date the instant falls on.
+// stored day always tracks the *local* wall-clock date the instant falls on.
+// Deliberately uses `date-fns`'s `format` (reads the JS engine's local
+// timezone), not a naive `iso.slice(0, 10)`: slicing would take the ISO
+// string's UTC date component instead, which silently disagrees with the
+// local date near midnight UTC-offset boundaries.
 function dateKeyFromIso(iso: string): string {
-  return iso.slice(0, 10);
+  return format(new Date(iso), 'yyyy-MM-dd');
 }
 
 async function persistTimedSchedule(
