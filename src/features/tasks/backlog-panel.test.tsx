@@ -55,7 +55,7 @@ describe('BacklogPanel', () => {
 
     await screen.findByText('Старое название');
     await user.click(screen.getByRole('button', { name: 'Меню: Старое название' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Редактировать' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Редактировать' }));
 
     const titleInput = screen.getByLabelText('Название');
     await user.clear(titleInput);
@@ -66,6 +66,41 @@ describe('BacklogPanel', () => {
     expect(screen.queryByText('Старое название')).not.toBeInTheDocument();
   });
 
+  it('closes the row menu on Escape without triggering any action', async () => {
+    const user = userEvent.setup();
+    await createTask(db, { userId: 'user-1', title: 'Задача с меню' });
+    render(<BacklogPanel userId="user-1" />);
+
+    await screen.findByText('Задача с меню');
+    await user.click(screen.getByRole('button', { name: 'Меню: Задача с меню' }));
+    expect(await screen.findByRole('menuitem', { name: 'Редактировать' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Редактировать' })).not.toBeInTheDocument();
+    });
+    // Still just viewing the row - editing was not opened.
+    expect(screen.queryByLabelText('Название')).not.toBeInTheDocument();
+    expect(screen.getByText('Задача с меню')).toBeInTheDocument();
+  });
+
+  it('closes the row menu when clicking outside of it', async () => {
+    const user = userEvent.setup();
+    await createTask(db, { userId: 'user-1', title: 'Ещё одна задача' });
+    render(<BacklogPanel userId="user-1" />);
+
+    await screen.findByText('Ещё одна задача');
+    await user.click(screen.getByRole('button', { name: 'Меню: Ещё одна задача' }));
+    expect(await screen.findByRole('menuitem', { name: 'Редактировать' })).toBeInTheDocument();
+
+    await user.click(document.body);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Редактировать' })).not.toBeInTheDocument();
+    });
+  });
+
   it('deletes a task via the row menu', async () => {
     const user = userEvent.setup();
     await createTask(db, { userId: 'user-1', title: 'Удалить меня' });
@@ -73,7 +108,7 @@ describe('BacklogPanel', () => {
 
     await screen.findByText('Удалить меня');
     await user.click(screen.getByRole('button', { name: 'Меню: Удалить меня' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Удалить' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Удалить' }));
 
     await waitFor(() => {
       expect(screen.queryByText('Удалить меня')).not.toBeInTheDocument();
@@ -109,7 +144,7 @@ describe('BacklogPanel', () => {
     const executeSpy = vi.spyOn(db, 'execute').mockRejectedValueOnce(new Error('disk full'));
 
     await user.click(screen.getByRole('button', { name: 'Меню: Не удаляется' }));
-    await user.click(screen.getByRole('menuitem', { name: 'Удалить' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Удалить' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Не удалось удалить задачу');
