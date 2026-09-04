@@ -34,5 +34,66 @@ const tasks = new Table({
   updated_at: column.text,
 });
 
-export const AppSchema = new Schema({ areas, tasks });
+// `weekdays` stores a JSON array of ISO weekday numbers (`1..7`, Monday-first)
+// as text - PowerSync/SQLite has no native JSON/array column type, so it is
+// parsed/serialized at the repository boundary (see `habit-repository.ts`).
+const habits = new Table({
+  user_id: column.text,
+  area_id: column.text,
+  title: column.text,
+  weekdays: column.text,
+  start_date: column.text,
+  end_date: column.text,
+  target_value: column.real,
+  target_unit: column.text,
+  active: column.integer,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const habit_completions = new Table({
+  user_id: column.text,
+  habit_id: column.text,
+  date: column.text,
+  completed: column.integer,
+  value: column.real,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const goals = new Table({
+  user_id: column.text,
+  area_id: column.text,
+  title: column.text,
+  description: column.text,
+  start_date: column.text,
+  end_date: column.text,
+  progress_mode: column.text,
+  manual_progress: column.real,
+  manual_adjustment: column.real,
+  created_at: column.text,
+  updated_at: column.text,
+});
+
+const goal_tasks = new Table({
+  user_id: column.text,
+  goal_id: column.text,
+  task_id: column.text,
+});
+
+const goal_habits = new Table({
+  user_id: column.text,
+  goal_id: column.text,
+  habit_id: column.text,
+});
+
+export const AppSchema = new Schema({
+  areas,
+  tasks,
+  habits,
+  habit_completions,
+  goals,
+  goal_tasks,
+  goal_habits,
+});
 export type PlannerDatabase = (typeof AppSchema)['types'];

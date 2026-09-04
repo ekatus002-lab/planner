@@ -8,13 +8,25 @@ import { BacklogPanel } from '@/features/tasks/backlog-panel';
 import { scheduleFromBacklogById, unscheduleTaskById, moveScheduledTaskById } from '@/features/tasks/scheduling';
 import { CalendarBoard } from '@/features/calendar/calendar-board';
 import { PlannerDndContext } from '@/features/calendar/planner-dnd-context';
+import { HabitsPanel } from '@/features/habits/habits-panel';
+import { GoalsPanel } from '@/features/goals/goals-panel';
 import { SyncStatusIndicator } from '@/components/sync/sync-status';
 
 type Props = { userId: string };
 
-// The desktop shell: three-column layout (backlog / calendar / habits).
-// Slice B fills in the center calendar column; the right (habits) column
-// remains an explicit placeholder until Slice C implements it.
+// Local calendar "today" as a `YYYY-MM-DD` string - deliberately built from
+// `Date`'s local-timezone getters (not `toISOString`, which is UTC), since
+// habit scheduling/streaks are about the day the *device* is currently on,
+// matching `isHabitScheduledOn`'s local-calendar-date semantics.
+function todayLocalDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// The desktop shell: three-column layout (backlog+goals / calendar / habits).
 //
 // Backlog and the calendar are dragged between here (`PlannerDndContext`
 // wraps both), not inside either feature's own component - dnd-kit only
@@ -22,6 +34,7 @@ type Props = { userId: string };
 // instance, and these two panels are siblings in this grid.
 export function AppShell({ userId }: Props) {
   const [isAreaSettingsOpen, setIsAreaSettingsOpen] = useState(false);
+  const [today] = useState(todayLocalDate);
   const db = usePowerSync() as CommonPowerSyncDatabase | null;
 
   return (
@@ -53,14 +66,15 @@ export function AppShell({ userId }: Props) {
           }}
         >
           <div className="grid flex-1 grid-cols-[320px_1fr_280px] overflow-hidden">
-            <section className="overflow-y-auto border-r p-4">
+            <section className="space-y-6 overflow-y-auto border-r p-4">
               <BacklogPanel userId={userId} />
+              <GoalsPanel userId={userId} today={today} />
             </section>
             <section className="min-w-0 overflow-hidden p-4">
               <CalendarBoard userId={userId} />
             </section>
-            <section className="flex items-center justify-center border-l p-4 text-center text-muted-foreground">
-              Привычки появятся позже
+            <section className="overflow-y-auto border-l p-4">
+              <HabitsPanel userId={userId} today={today} />
             </section>
           </div>
         </PlannerDndContext>

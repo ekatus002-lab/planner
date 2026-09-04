@@ -7,3 +7,8 @@ streams:
     queries:
       - SELECT * FROM areas WHERE user_id = auth.user_id()
       - SELECT * FROM tasks WHERE user_id = auth.user_id()
+      - SELECT * FROM habits WHERE user_id = auth.user_id()
+      - SELECT * FROM habit_completions WHERE user_id = auth.user_id()
+      - SELECT * FROM goals WHERE user_id = auth.user_id()
+      - SELECT * FROM goal_tasks WHERE user_id = auth.user_id()
+      - SELECT * FROM goal_habits WHERE user_id = auth.user_id()
